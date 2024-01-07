@@ -12,34 +12,12 @@ EVENT.Type = EVENT_TYPE_WEAPON_OVERRIDE
 EVENT.Categories = {"rolechange", "entityspawn", "largeimpact"}
 
 function EVENT:Begin()
+    local yeti_scale_val = yeti_scale:GetFloat()
+
     net.Start("RandomatYetiBegin")
     net.Broadcast()
 
     YETI:RegisterRole()
-
-    self:AddHook("TTTPrintResultMessage", function(win_type)
-        if win_type == WIN_YETI then
-            LANG.Msg("win_yeti")
-            ServerLog("Result: The yeti wins.\n")
-            return true
-        end
-    end)
-
-    self:AddHook("TTTCheckForWin", function()
-        local yeti_win = true
-        for _, p in ipairs(self:GetAlivePlayers()) do
-            -- If there is a living non-yeti then go back to the default check logic
-            -- Exceptions for non-clown Jesters
-            if not Randomat:IsTraitorTeam(p) and (p:GetRole() == ROLE_CLOWN or not Randomat:IsJesterTeam(p)) then
-                yeti_win = false
-                break
-            end
-        end
-
-        if yeti_win then
-            return WIN_YETI
-        end
-    end)
 
     local traitors = {}
     local special = nil
@@ -73,10 +51,34 @@ function EVENT:Begin()
     yeti:StripWeapons()
     yeti:Give("weapon_yeti_club")
 
-    Randomat:SetPlayerScale(yeti, yeti_scale:GetFloat(), self.id)
+    Randomat:SetPlayerScale(yeti, yeti_scale_val, self.id)
 
     yeti:QueueMessage(MSG_PRINTBOTH, "You are the Yeti! Use your club to kill your enemies or freeze them in place!")
     SendFullStateUpdate()
+
+    self:AddHook("TTTPrintResultMessage", function(win_type)
+        if win_type == WIN_YETI then
+            LANG.Msg("win_yeti")
+            ServerLog("Result: The yeti wins.\n")
+            return true
+        end
+    end)
+
+    self:AddHook("TTTCheckForWin", function()
+        local yeti_win = true
+        for _, p in ipairs(self:GetAlivePlayers()) do
+            -- If there is a living non-yeti then go back to the default check logic
+            -- Exceptions for non-clown Jesters
+            if not p:IsRole(ROLE_YETI) and (p:GetRole() == ROLE_CLOWN or not Randomat:IsJesterTeam(p)) then
+                yeti_win = false
+                break
+            end
+        end
+
+        if yeti_win then
+            return WIN_YETI
+        end
+    end)
 
     self:AddHook("PlayerCanPickupWeapon", function(ply, wep)
         -- Invalid, dead, spectator, and non-yetis can pick up whatever they want
@@ -114,7 +116,9 @@ function EVENT:Begin()
         net.WriteAngle(ply:GetAimVector():Angle())
         net.WriteBit(foot)
         net.WriteTable(COLOR_WHITE)
+        -- Footstep display time
         net.WriteUInt(10, 8)
+        net.WriteFloat(yeti_scale_val)
         net.Broadcast()
     end)
 end
