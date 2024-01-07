@@ -3,11 +3,11 @@ YETI = {
 }
 
 if SERVER then
-    resource.AddFile("materials/vgui/ttt/icon_yeti.vmt")
-    resource.AddFile("materials/vgui/ttt/sprite_yeti.vmt")
-    resource.AddSingleFile("materials/vgui/ttt/sprite_yeti_noz.vmt")
-    resource.AddSingleFile("materials/vgui/ttt/score_yeti.png")
-    resource.AddSingleFile("materials/vgui/ttt/tab_yeti.png")
+    resource.AddFile("materials/vgui/ttt/roles/yeti/icon_yeti.vmt")
+    resource.AddFile("materials/vgui/ttt/roles/yeti/sprite_yeti.vmt")
+    resource.AddSingleFile("materials/vgui/ttt/roles/yeti/sprite_yeti_noz.vmt")
+    resource.AddSingleFile("materials/vgui/ttt/roles/yeti/score_yeti.png")
+    resource.AddSingleFile("materials/vgui/ttt/roles/yeti/tab_yeti.png")
 end
 
 function YETI:RegisterRole()
