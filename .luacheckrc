@@ -504,6 +504,7 @@ globals = {
     "isentity",
     "isfunction",
     "isnumber",
+    "ispanel",
     "isstring",
     "istable",
     "next",
@@ -1109,28 +1110,10 @@ globals = {
     "EQUIP_PHD",
     "ULib",
 
-	-- JJ2022
-	"FAKER_READY",
-	"FAKER_MISSING_LOS",
-	"FAKER_MISSING_RANGE",
-	"FAKER_MISSING_BOTH",
-	"FAKER_WEAPON_NONE",
-	"FAKER_WEAPON_FAKE",
-	"FAKER_WEAPON_USED",
-	"KRAMPUS_NAUGHTY_NONE",
-	"KRAMPUS_NAUGHTY_DAMAGE",
-	"KRAMPUS_NAUGHTY_KILL",
-	"KRAMPUS_NAUGHTY_OTHER",
-	"ROLE_DETECTOCLOWN",
-	"ROLE_FAKER",
-	"ROLE_KRAMPUS",
-	"WIN_DETECTOCLOWN",
-	"WIN_FAKER",
-	"WIN_KRAMPUS",
-	"MarkPlayerNaughty",
-
-	-- JJ2022 Randomat
-	"SECRETSANTA"
+	-- JJ2023 Randomat
+	"ROLE_YETI",
+    "WIN_YETI",
+    "YETI"
 }
 std = {
     globals = {
