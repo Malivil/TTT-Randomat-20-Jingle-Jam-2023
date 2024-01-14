@@ -4,6 +4,7 @@ util.AddNetworkString("RandomatYetiBegin")
 util.AddNetworkString("RandomatYetiEnd")
 
 local yeti_scale = CreateConVar("randomat_yeti_scale", 1.5, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "The scale factor to use for the yeti", 1.1, 3.0)
+CreateConVar("randomat_yeti_freeze_time", 5, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "The amount of time to freeze players hit by the club freezing projectile", 1, 30)
 
 EVENT.Title = "Yeti Hunt"
 EVENT.Description = "A Yeti has been spotted!"
@@ -131,6 +132,20 @@ end
 
 function EVENT:GetConVars()
     local sliders = {}
+    for _, v in ipairs({"freeze_time"}) do
+        local name = "randomat_" .. self.id .. "_" .. v
+        if ConVarExists(name) then
+            local convar = GetConVar(name)
+            table.insert(sliders, {
+                cmd = v,
+                dsc = convar:GetHelpText(),
+                min = convar:GetMin(),
+                max = convar:GetMax(),
+                dcm = 0
+            })
+        end
+    end
+
     for _, v in ipairs({"scale"}) do
         local name = "randomat_" .. self.id .. "_" .. v
         if ConVarExists(name) then
