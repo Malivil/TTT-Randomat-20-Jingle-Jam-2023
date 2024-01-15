@@ -64,6 +64,9 @@ function YETI:RegisterRole()
         LANG.AddToLanguage("english", "win_yeti", "The yeti has beaten back the hunters for a win!")
         LANG.AddToLanguage("english", "ev_win_yeti", "The yeti has beaten back the hunters for a win!")
 
+        LANG.AddToLanguage("english", "yeticlub_help_pri", "Press {primaryfire} to damage and knock back players.")
+        LANG.AddToLanguage("english", "yeticlub_help_sec", "Press {secondaryfire} to launch a freezing projectile.")
+
         -- Popup
         LANG.AddToLanguage("english", "info_popup_yeti", [[You are {role}!
 
