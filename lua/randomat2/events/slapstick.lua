@@ -118,7 +118,9 @@ end
 local started = false
 function EVENT:Begin()
     started = true
-    self:DisableRoundEndSounds()
+    if endsound:GetBool() then
+        self:DisableRoundEndSounds()
+    end
 
     net.Start("TriggerSlapstick")
     net.Broadcast()
