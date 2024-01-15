@@ -123,7 +123,7 @@ function EVENT:Begin()
     net.Start("StartPokerRandomat") -- Should players not in this list be notified they were passed over and for what reason?
         net.WriteUInt(#self.Players, 3)
         for _, ply in ipairs(self.Players) do
-            net.WritePlayer(ply)
+            net.WriteEntity(ply)
         end
     net.Broadcast()
 end
@@ -142,8 +142,8 @@ function EVENT:StartGame()
     self.PlayerBets[bigBlind] = BETS.HALF
 
     net.Start("NotifyBlinds")
-        net.WritePlayer(smallBlind)
-        net.WritePlayer(bigBlind)
+        net.WriteEntity(smallBlind)
+        net.WriteEntity(bigBlind)
     net.Broadcast()
 
     self:GenerateDeck()
@@ -237,7 +237,7 @@ function EVENT:BeginBetting(optionalPlayer)
     end
 
     net.Start("StartBetting")
-        net.WritePlayer(self.ExpectantBetter)
+        net.WriteEntity(self.ExpectantBetter)
     net.Broadcast()
 
     timer.Create("WaitingOnPlayerBet", 30, 1, function() -- TODO Make this into a ConVar
@@ -306,14 +306,14 @@ function EVENT:RegisterPlayerBet(ply, bet)
             ply.Status = BettingStatus.FOLD
 
             net.Start("PlayerFolded")
-                net.WritePlayer(ply)
+                net.WriteEntity(ply)
             net.Broadcast()
         elseif bet == playersPreviousBet then
             -- TODO this does not check if they're expected to be calling and instead they're somehow checking
             ply.Status = BettingStatus.CHECK
 
             net.Start("PlayerChecked")
-                net.WritePlayer(ply)
+                net.WriteEntity(ply)
             net.Broadcast()
         elseif bet > playersPreviousBet then
             self.PlayerBets[ply] = bet
@@ -322,14 +322,14 @@ function EVENT:RegisterPlayerBet(ply, bet)
                 ply.Status = BettingStatus.RAISE -- I'm still not certain why I necessarily care about assigning any status beyond "is folded or not"
 
                 net.Start("PlayerRaised")
-                    net.WritePlayer(ply)
+                    net.WriteEntity(ply)
                     net.WriteUInt(bet, 3)
                 net.Broadcast()
             else
                 ply.Status = BettingStatus.CALL
 
                 net.Start("PlayerCalled")
-                    net.WritePlayer(ply)
+                    net.WriteEntity(ply)
                 net.Broadcast()
             end
         end
@@ -353,7 +353,7 @@ function EVENT:RegisterPlayerBet(ply, bet)
         ply.Status = BettingStatus.FOLD
 
         net.Start("PlayerFolded")
-            net.WritePlayer(ply)
+            net.WriteEntity(ply)
         net.Broadcast()
     end
 end
@@ -428,7 +428,7 @@ function EVENT:CalculateWinner()
     local winner = self:GetWinningPlayer()
 
     net.Start("DeclareWinner")
-        net.WritePlayer(winner)
+        net.WriteEntity(winner)
         --Should we also send ALL card info here? You get to see your opponent's hands normally
     net.Broadcast()
 
@@ -653,13 +653,14 @@ function EVENT:ApplyRewards(winner)
         local healthToLose = math.Round(health * betPercent)
 
         runningHealth = runningHealth + healthToLose
-        ply:SetMaxHealth(ply:GetMaxHealth() - healthToLose)
 
         if bet == Bets.ALL then
             ply:Kill()
         else
             ply:SetHealth(ply:GetHealth - healthToLose)
-        end        
+        end
+
+        ply:SetMaxHealth(ply:GetMaxHealth() - healthToLose)
     end
 
     winner:SetMaxHealth(winner:GetMaxHealth() + runningHealth)
@@ -703,6 +704,7 @@ net.Receive("StartPokerRandomatCallback", function(len, ply)
         end)
     end
 
+    -- TODO check if player we're receiving is supposed to be play the game
     EVENT.Players[ply].Ready = true
 
     if AllPlayersReady(EVENT.Players) then
