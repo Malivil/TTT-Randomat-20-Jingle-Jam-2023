@@ -1,5 +1,7 @@
 local EVENT = {}
 
+local endsound = CreateConVar("randomat_slapstick_endsound", 1, {FCVAR_NOTIFY, FCVAR_ARCHIVE}, "Whether to play the sound at the end of the event")
+
 EVENT.Title = "Slapstick"
 EVENT.Description = "Swaps out game sounds with funny replacements"
 EVENT.id = "slapstick"
@@ -23,6 +25,7 @@ local gunshot_sound_path = "slapstick/weapons/gunshot/gunshot%s.wav"
 local jump_sound_path = "slapstick/jump/jump%s.mp3"
 local reload_sound_path = "slapstick/weapons/reload/reload%s.wav"
 local smashing_glass_sound_path = "slapstick/smashing_glass/smashing_glass%s.wav"
+local outro_sound_path = "slapstick/outro/outro%s.mp3"
 
 -- Sound file counts
 local beeping_sound_count = 1
@@ -36,6 +39,7 @@ local gunshot_sound_count = 5
 local jump_sound_count = 4
 local reload_sound_count = 1
 local smashing_glass_sound_count = 1
+local outro_sound_count = 2
 
 -- Sound patterns and path-count mappings
 local footsteps_pattern = ".*player/footsteps/.*%..*"
@@ -108,11 +112,17 @@ function EVENT:Initialize()
     PrecacheSounds(jump_sound_path, jump_sound_count)
     PrecacheSounds(reload_sound_path, reload_sound_count)
     PrecacheSounds(smashing_glass_sound_path, smashing_glass_sound_count)
+    PrecacheSounds(outro_sound_path, outro_sound_count)
 end
 
+local started = false
 function EVENT:Begin()
+    started = true
+    self:DisableRoundEndSounds()
+
     net.Start("TriggerSlapstick")
     net.Broadcast()
+
     for _, ply in ipairs(player.GetAll()) do
         for _, wep in ipairs(ply:GetWeapons()) do
             local chosen_sound = StringFormat(gunshot_sound_path, math.random(gunshot_sound_count))
@@ -171,14 +181,37 @@ function EVENT:Begin()
 end
 
 function EVENT:End()
+    if not started then return end
+
+    started = false
+
     net.Start("EndSlapstick")
+    net.WriteBool(endsound:GetBool())
+    net.WriteUInt(math.random(outro_sound_count), 2)
     net.Broadcast()
+
     timer.Remove("SlapstickDelay")
+
     for _, ply in ipairs(player.GetAll()) do
         for _, wep in ipairs(ply:GetWeapons()) do
             Randomat:RestoreWeaponSound(wep)
         end
     end
+end
+
+function EVENT:GetConVars()
+    local checks = {}
+    for _, v in ipairs({"endsound"}) do
+        local name = "randomat_" .. self.id .. "_" .. v
+        if ConVarExists(name) then
+            local convar = GetConVar(name)
+            table.insert(checks, {
+                cmd = v,
+                dsc = convar:GetHelpText()
+            })
+        end
+    end
+    return {}, checks
 end
 
 Randomat:register(EVENT)

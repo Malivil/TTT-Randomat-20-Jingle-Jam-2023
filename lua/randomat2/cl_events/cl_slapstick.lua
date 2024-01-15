@@ -12,6 +12,7 @@ local gunshot_sound_path = "slapstick/weapons/gunshot/gunshot%s.wav"
 local jump_sound_path = "slapstick/jump/jump%s.mp3"
 local reload_sound_path = "slapstick/weapons/reload/reload%s.wav"
 local smashing_glass_sound_path = "slapstick/smashing_glass/smashing_glass%s.wav"
+local outro_sound_path = "slapstick/outro/outro%s.mp3"
 
 -- Sound file counts
 local beeping_sound_count = 1
@@ -111,7 +112,9 @@ net.Receive("EndSlapstick", function()
     hook.Remove("EntityEmitSound", "SlapstickOverrideHook")
     hooked = false
 
-    -- TODO: Do outro circle and song
+    -- Do outro circle and song
+    local outro = net.ReadUInt(2)
+    surface.PlaySound(StringFormat(outro_sound_path, outro))
 
     local client = LocalPlayer()
     if not IsValid(client) then return end

@@ -26,7 +26,8 @@ Swaps out game sounds with funny replacements
 \
 _ttt_randomat_slapstick_ - Default: 1 - Whether this event is enabled.\
 _ttt_randomat_slapstick_min_players_ - Default: 0 - The minimum number of players required for this event to start.\
-_ttt_randomat_slapstick_weight_ - Default: -1 - The weight this event should use during the randomized event selection process.
+_ttt_randomat_slapstick_weight_ - Default: -1 - The weight this event should use during the randomized event selection process.\
+_randomat_slapstick_endsound_ - Default: 1 - Whether to play the sound at the end of the event
 
 ## Yeti Hunt
 _Suggested By_: Kawaii Five-0\
@@ -46,5 +47,8 @@ _randomat_yeti_freeze_time_ - Default: 5 - The amount of time to freeze players 
 - [Game icons](https://game-icons.net/) for the role icons
 - TFA, Tanki Flo, and Raven for portions of code and effects used in the Yeti Club freezing projectile
 - MGM/Brooksfilms for the sound clip from Spaceballs (1987) used at the start of the "Jingle Jam 2023" event
+  - Sound is property of its respective creators/owners
+- Warner Bros. for the sound clip from Looney Tunes used as the outro for the "Slapstick" event
+  - Sounds are property of their respective creators/owners
 - [Goofy Ahh Sounds](https://steamcommunity.com/sharedfiles/filedetails/?id=2801860110) for the sounds used in the "Slapstick" event
   - Sounds are property of their respective creators/owners
