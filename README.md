@@ -17,6 +17,17 @@ _ttt_randomat_jinglejam2023_weight_ - Default: -1 - The weight this event should
 _randomat_jinglejam2023_time_ - Default: 30 - How long to jam player screens for.\
 _randomat_jinglejam2023_targetall_ - Default: 0 - Whether to target all players. If disabled, only non-innocents are targetted.
 
+## Slapstick
+_Suggested By_: The Stig\
+Swaps out game sounds with funny replacements
+\
+\
+**ConVars**
+\
+_ttt_randomat_slapstick_ - Default: 1 - Whether this event is enabled.\
+_ttt_randomat_slapstick_min_players_ - Default: 0 - The minimum number of players required for this event to start.\
+_ttt_randomat_slapstick_weight_ - Default: -1 - The weight this event should use during the randomized event selection process.
+
 ## Yeti Hunt
 _Suggested By_: Kawaii Five-0\
 A Yeti has been spotted! One player turns into a yeti, growing larger and gaining more health. They then use their club to knock back, freeze, and kill their enemies.
@@ -34,4 +45,6 @@ _randomat_yeti_freeze_time_ - Default: 5 - The amount of time to freeze players 
 # Special Thanks
 - [Game icons](https://game-icons.net/) for the role icons
 - TFA, Tanki Flo, and Raven for portions of code and effects used in the Yeti Club freezing projectile
-- MGM/Brooksfilms for the sound clip used at the start of Jingle Jam 2023
+- MGM/Brooksfilms for the sound clip from Spaceballs (1987) used at the start of the "Jingle Jam 2023" event
+- [Goofy Ahh Sounds](https://steamcommunity.com/sharedfiles/filedetails/?id=2801860110) for the sounds used in the "Slapstick" event
+  - Sounds are property of their respective creators/owners
