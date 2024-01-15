@@ -108,13 +108,72 @@ net.Receive("TriggerSlapstick", function()
     end
 end)
 
+local function DrawCircle(x, y, radius, seg)
+    local cir = {}
+    for i = 0, seg do
+		local a = math.rad((i / seg) * -360)
+		table.insert(cir, { x = x + math.sin(a) * radius, y = y + math.cos(a) * radius, u = math.sin(a) / 2 + 0.5, v = math.cos(a) / 2 + 0.5 })
+	end
+    surface.DrawPoly(cir)
+end
+
 net.Receive("EndSlapstick", function()
     hook.Remove("EntityEmitSound", "SlapstickOverrideHook")
     hooked = false
 
-    -- Do outro circle and song
+    local playoutro = net.ReadBool()
     local outro = net.ReadUInt(2)
-    surface.PlaySound(StringFormat(outro_sound_path, outro))
+    local postround = net.ReadUInt(8)
+    local starttime = CurTime()
+    local endtime = starttime + (postround / 2)
+
+    -- Do outro song if its enabled
+    if playoutro then
+        surface.PlaySound(StringFormat(outro_sound_path, outro))
+    end
+
+    -- And print outro circle
+    hook.Add("HUDPaint", "SlapstickHUDPaint", function()
+        local stencil = CurTime() < endtime
+        if stencil then
+            -- Reset everything to known good
+            render.SetStencilWriteMask(0xFF)
+            render.SetStencilTestMask(0xFF)
+            render.SetStencilReferenceValue(0)
+            render.SetStencilCompareFunction(STENCIL_ALWAYS)
+            render.SetStencilPassOperation(STENCIL_KEEP)
+            render.SetStencilFailOperation(STENCIL_KEEP)
+            render.SetStencilZFailOperation(STENCIL_KEEP)
+            render.ClearStencil()
+
+            -- Enable stencils
+            render.SetStencilEnable(true)
+            -- Set everything up everything draws to the stencil buffer instead of the screen
+            render.SetStencilReferenceValue(1)
+            render.SetStencilCompareFunction(STENCIL_NEVER)
+            render.SetStencilFailOperation(STENCIL_REPLACE)
+
+            draw.NoTexture()
+            surface.SetDrawColor(COLOR_WHITE)
+            DrawCircle(ScrW() / 2, ScrH() / 2, ScrW() - (ScrW() * ((CurTime() - starttime) / (endtime - starttime))), 100)
+
+            -- Only draw things that are not in the stencil buffer
+            render.SetStencilCompareFunction(STENCIL_NOTEQUAL)
+            render.SetStencilFailOperation(STENCIL_KEEP)
+        end
+
+        -- Draw the background
+        surface.SetDrawColor(COLOR_BLACK)
+        surface.DrawRect(0, 0, ScrW(), ScrH())
+
+        if stencil then
+            -- Let everything render normally again
+            render.SetStencilEnable(false)
+        end
+    end)
+    timer.Simple(postround, function()
+        hook.Remove("HUDPaint", "SlapstickHUDPaint")
+    end)
 
     local client = LocalPlayer()
     if not IsValid(client) then return end

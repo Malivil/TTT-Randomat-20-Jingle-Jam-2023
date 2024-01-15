@@ -185,10 +185,17 @@ function EVENT:End()
 
     started = false
 
+    local postround = GetConVar("ttt_posttime_seconds"):GetInt()
+
     net.Start("EndSlapstick")
     net.WriteBool(endsound:GetBool())
     net.WriteUInt(math.random(outro_sound_count), 2)
+    net.WriteUInt(postround, 8)
     net.Broadcast()
+
+    timer.Simple(postround / 2, function()
+        Randomat:Notify("That's all folks!", postround / 2, nil, true, true, COLOR_WHITE)
+    end)
 
     timer.Remove("SlapstickDelay")
 
