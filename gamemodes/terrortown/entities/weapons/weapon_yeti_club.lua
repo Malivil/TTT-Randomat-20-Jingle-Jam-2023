@@ -25,11 +25,12 @@ SWEP.Primary.Automatic      = true
 SWEP.Primary.Ammo           = "none"
 SWEP.Primary.Delay          = 0.5
 
+SWEP.Secondary.Damage       = 0
 SWEP.Secondary.ClipSize     = -1
 SWEP.Secondary.DefaultClip  = -1
 SWEP.Secondary.Automatic    = true
 SWEP.Secondary.Ammo         = "none"
-SWEP.Secondary.Delay        = 0.1
+SWEP.Secondary.Delay        = 1
 
 SWEP.Kind                   = WEAPON_MELEE
 
@@ -39,21 +40,29 @@ SWEP.NoSights               = true
 
 local sound_single = Sound("Weapon_Crowbar.Single")
 
+function SWEP:Initialize()
+    if CLIENT then
+        self:AddHUDHelp("yeticlub_help_pri", "yeticlub_help_sec", true)
+    end
+    return self.BaseClass.Initialize(self)
+end
+
 function SWEP:PrimaryAttack()
     self:SetNextPrimaryFire(CurTime() + self.Primary.Delay)
 
-    if not IsValid(self:GetOwner()) then return end
+    local owner = self:GetOwner()
+    if not IsValid(owner) then return end
 
-    if self:GetOwner().LagCompensation then -- for some reason not always true
-        self:GetOwner():LagCompensation(true)
+    if owner.LagCompensation then -- for some reason not always true
+        owner:LagCompensation(true)
     end
 
-    local spos = self:GetOwner():GetShootPos()
-    local sdest = spos + (self:GetOwner():GetAimVector() * 140)
+    local spos = owner:GetShootPos()
+    local sdest = spos + (owner:GetAimVector() * 140)
     local kmins = Vector(1,1,1) * -10
     local kmaxs = Vector(1,1,1) * 10
 
-    local tr_main = util.TraceHull({start=spos, endpos=sdest, filter=self:GetOwner(), mask=MASK_SHOT_HULL, mins=kmins, maxs=kmaxs})
+    local tr_main = util.TraceHull({start=spos, endpos=sdest, filter=owner, mask=MASK_SHOT_HULL, mins=kmins, maxs=kmaxs})
     local hitEnt = tr_main.Entity
 
     self:EmitSound(sound_single)
@@ -76,8 +85,8 @@ function SWEP:PrimaryAttack()
 
                 -- do a bullet just to make blood decals work sanely
                 -- need to disable lagcomp because firebullets does its own
-                self:GetOwner():LagCompensation(false)
-                self:GetOwner():FireBullets({ Num = 1, Src = spos, Dir = self:GetOwner():GetAimVector(), Spread = Vector(0, 0, 0), Tracer = 0, Force = 1, Damage = 0 })
+                owner:LagCompensation(false)
+                owner:FireBullets({ Num = 1, Src = spos, Dir = owner:GetAimVector(), Spread = Vector(0, 0, 0), Tracer = 0, Force = 1, Damage = 0 })
             else
                 util.Effect("Impact", edata)
             end
@@ -87,31 +96,77 @@ function SWEP:PrimaryAttack()
     end
 
     if SERVER then
-        self:GetOwner():SetAnimation(PLAYER_ATTACK1)
+        owner:SetAnimation(PLAYER_ATTACK1)
 
         if IsValid(hitEnt) then
+            local aimVector = owner:GetAimVector()
             local dmg = DamageInfo()
             dmg:SetDamage(self.Primary.Damage)
-            dmg:SetAttacker(self:GetOwner())
+            dmg:SetAttacker(owner)
             dmg:SetInflictor(self)
-            dmg:SetDamageForce(self:GetOwner():GetAimVector() * 1500)
-            dmg:SetDamagePosition(self:GetOwner():GetPos())
+            dmg:SetDamageForce(aimVector * 1500)
+            dmg:SetDamagePosition(owner:GetPos())
             dmg:SetDamageType(DMG_CLUB)
 
-            hitEnt:DispatchTraceAttack(dmg, spos + (self:GetOwner():GetAimVector() * 3), sdest)
+            hitEnt:DispatchTraceAttack(dmg, spos + (aimVector * 3), sdest)
+
+            -- Knock the target back if they aren't frozen
+            local isPlayer = hitEnt:IsPlayer()
+            if not isPlayer or not hitEnt:IsFrozen() then
+                hitEnt:SetVelocity(aimVector * 1500)
+                if isPlayer then
+                    hitEnt.was_pushed = { att = owner, t = CurTime(), wep = self:GetClass() } --, infl=self}
+                end
+            end
         end
     end
 
-    if self:GetOwner().LagCompensation then
-        self:GetOwner():LagCompensation(false)
+    if owner.LagCompensation then
+        owner:LagCompensation(false)
     end
 end
 
-function SWEP:GetClass()
+function SWEP:SecondaryAttack()
+    self:SetNextPrimaryFire(CurTime() + self.Primary.Delay)
+    self:SetNextSecondaryFire(CurTime() + self.Secondary.Delay)
+
+    local owner = self:GetOwner()
+    if not IsValid(owner) then return end
+
+    if owner.LagCompensation then -- for some reason not always true
+        owner:LagCompensation(true)
+    end
+
+    self:SendWeaponAnim(ACT_VM_HITCENTER)
+    if SERVER then
+        owner:SetAnimation(PLAYER_ATTACK1)
+
+        local ent = ents.Create("yeti_club_proj")
+        local ang = owner:GetAimVector():Angle()
+
+        ent:SetPos(owner:GetShootPos())
+        ent:SetOwner(owner)
+        ent:SetAngles(ang)
+        ent:Spawn()
+
+        local dir = ang:Forward()
+        -- Projectile velocity
+        dir:Mul(1000)
+        ent:SetVelocity(dir)
+
+        local phys = ent:GetPhysicsObject()
+        if IsValid(phys) then
+            phys:SetVelocity(dir)
+        end
+
+        ent:SetOwner(owner)
+    end
+
+    if owner.LagCompensation then
+        owner:LagCompensation(false)
+    end
 end
 
 function SWEP:OnDrop()
+    self:Remove()
 end
-
--- TODO: Left-click knockback
--- TODO: Right-click to throw ice ball that freezes players
