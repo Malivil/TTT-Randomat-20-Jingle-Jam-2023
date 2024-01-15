@@ -24,7 +24,7 @@ local BettingStatus = {
     CHECK = 2,
     CALL = 3,
     RAISE = 4,
-    ALLIN = 5
+    ALL_IN = 5
 }
 local Bets = {
     NONE = 0,
@@ -34,6 +34,7 @@ local Bets = {
     ALL = 4
 }
 local Hands = {
+    NONE = 0,
     HIGH_CARD = 1,
     PAIR = 2,
     TWO_PAIR = 3,
@@ -45,6 +46,29 @@ local Hands = {
     STRAIGHT_FLUSH = 9,
     ROYAL_FLUSH = 10,
     NINE_OF_DIAMONDS = 11
+}
+local Cards = {
+    NONE = 0,
+    ACE = 1,
+    TWO = 2,
+    THREE = 3,
+    FOUR = 4,
+    FIVE = 5,
+    SIX = 6,
+    SEVEN = 7,
+    EIGHT = 8
+    NINE = 9,
+    TEN = 10,
+    JACK = 11,
+    QUEEN = 12,
+    KING = 13
+}
+local Suits = {
+    NONE = 0,
+    SPADES = 1,
+    HEARTS = 2,
+    DIAMONDS = 3,
+    CLUBS = 4
 }
 
 --// EVENT Properties
@@ -139,10 +163,10 @@ function EVENT:GenerateDeck()
 
     self.Deck = {}
 
-    for num = 1, 13 do
-        for suit = 1, 4 do
+    for rank = Cards.ACE, Cards.KING do
+        for suit = Suits.SPADES, Suits.CLUBS do
             table.insert(self.Deck, {
-                num = num,
+                rank = rank,
                 suit = suit
             })
         end
@@ -172,7 +196,7 @@ function EVENT:DealDeck()
 
                 ply.Cards[i + 1] = card
 
-                net.WriteUInt(card.num, 5)
+                net.WriteUInt(card.rank, 5)
                 net.WriteUInt(card.suit, 3)
             end
         net.Send(ply)
@@ -243,15 +267,19 @@ local function AllPlayersMatchingBets()
 end
 
 local function IsBetRaise(ply, bet)
+    local highestBet = 0
+
     for _, comparePly in ipairs(EVENT.Players) do
         if comparePly ~= ply then
-            if EVENT.PlayerBets[comparePly] == bet then
-                return false
+            local newBet = EVENT.PlayerBets[comparePly]
+
+            if newBet > highestBet then
+                highestBet = newBet
             end
         end
     end
 
-    return true
+    return bet > highestBet
 end
 
 -- Called to register a player's bet (or lack thereof) - Bet is assumed to be the truth, determines if a bet was a fold, check, call, or raise
@@ -272,25 +300,26 @@ function EVENT:RegisterPlayerBet(ply, bet)
             timer.Remove("WaitingOnPlayerBet")
         end
 
-        local previousPlayerBet = self.PlayerBets[ply] or 0
+        local playersPreviousBet = self.PlayerBets[ply] or 0
 
-        if bet == 0 or bet < previousPlayerBet then
+        if bet == 0 or bet < playersPreviousBet then
             ply.Status = BettingStatus.FOLD
 
             net.Start("PlayerFolded")
                 net.WritePlayer(ply)
             net.Broadcast()
-        elseif bet == previousPlayerBet then
+        elseif bet == playersPreviousBet then
+            -- TODO this does not check if they're expected to be calling and instead they're somehow checking
             ply.Status = BettingStatus.CHECK
 
             net.Start("PlayerChecked")
                 net.WritePlayer(ply)
             net.Broadcast()
-        elseif bet > previousPlayerBet then
+        elseif bet > playersPreviousBet then
             self.PlayerBets[ply] = bet
 
-            if IsBetRaise(ply, bet) then -- I'm still not certain why I necessarily care about any status beyond "is folded or not"
-                ply.Status = BettingStatus.RAISE
+            if IsBetRaise(ply, bet) then
+                ply.Status = BettingStatus.RAISE -- I'm still not certain why I necessarily care about assigning any status beyond "is folded or not"
 
                 net.Start("PlayerRaised")
                     net.WritePlayer(ply)
@@ -391,62 +420,250 @@ function EVENT:RegisterPlayerDiscard(ply, discardsTable)
 end
 
 function EVENT:CalculateWinner()
-    local winner = self:GetWinningPlayer()
+    if not self.Started then
+        self:End()
+        return
+    end
 
-    local reward = self:CalculateRewards(winner)
+    local winner = self:GetWinningPlayer()
 
     net.Start("DeclareWinner")
         net.WritePlayer(winner)
         --Should we also send ALL card info here? You get to see your opponent's hands normally
     net.Broadcast()
 
-    self:ApplyRewards(reward)
+    self:ApplyRewards(winner)
 
     timer.Simple(5, function()
         self:End()
     end)
 end
 
+-- This is gonna get fuckinnnnnnnnn messy
 local function GetHandRank(ply)
     local hand = ply.Cards
 
-    if 
+    -- Check for flush
+    local isFlush = true
+    local suit = Suits.NONE
+
+    for _, card in ipairs(hand) do
+        if suit == 0 then
+            suit = card.suit
+        elseif suit ~= card.suit then
+            isFlush = false
+
+            break
+        end
+    end
+
+    -- Check for straights
+    local isStraight = true
+    local prevNum = Cards.NONE
+    local handCopyAsc = table.Copy(hand)
+
+    table.sort(handCopyAsc, function(cardOne, cardTwo)
+        return cardOne.rank < cardTwo.rank
+    end)
+
+    for _, card in ipairs(handCopyAsc) do
+        if prevNum == 0 then
+            prevNum = card.rank
+        elseif not card.rank == prevNum + 1 or (prevNum == 1 and card.rank ~= Cards.TEN) then
+            isStraight = false
+
+            break
+        else
+            prevNum = card.rank
+        end
+    end
+
+    -- Check for kinds
+    local suitsByRank = {[], [], [], [], [], [], [], [], [], [], [], [], []}
+    local hasThree = false
+    local hasThreeRank = Cards.NONE
+    local hasPair = false
+    local hasTwoPair = false
+    local hasPairsRank = CARDS.NONE
+
+    for _, card in ipairs(hand) do
+        table.insert(suitsByRank[card.rank], card.suit)
+    end
+
+    for rank, tbl in ipairs(suitsByRank) do
+        local count = #tbl
+
+        if count == 2 then
+            if hasPair then
+                hasTwoPair = true
+
+                if rank > hasPairsRank then
+                    hasPairsRank = rank
+                end
+            else
+                endhasPair = true
+                hasPairsRank = rank
+            end
+        elseif count == 3 then
+            hasThree = true
+            hasThreeRank = rank
+        end
+    end
+
+    -- Get highest card rank
+    local highestRank = Cards.NONE
+    
+    if handCopyAsc[1].rank == Cards.ACE then
+        highestRank = Cards.ACE
+    else
+        highestRank = handCopyAsc[5].rank
+    end
+
+    -- Get table of ranks (used specifically for comparing hands when winning hands are matching pairs or high cards)
+    local rankTable = []
+
+    for _, card in ipairs(handCopyAsc) do
+        table.insert(rankTable, card.rank)
+    end
+
+    -- Check possible hands in descending order --
+
+    -- Any pair+ featuring a nine of diamonds
+    if suitsByRank[Cards.NINE] and #suitsByRank[Cards.NINE] > 1 and table.HasValue(suitsByRank[card.rank], Suits.DIAMONDS) then
+        return Hands.NINE_OF_DIAMONDS
+    end
+
+    -- Royal flush/straight flush check
+    if isFlush and isStraight then
+        if handCopyAsc[1].rank == Cards.ACE then
+            return Hands.ROYAL_FLUSH
+        else
+            return Hands.STRAIGHT_FLUSH, highestRank
+        end
+    end
+
+    -- Four of a kind
+    for rank, suit in pairs(suitsByRank) do
+        if #suit == 4 then
+            return Hands.FOUR_KIND, rank
+        end
+    end
+
+    -- Full house
+    if hasPair and hasThree then
+        return Hands.FULL_HOUSE, hasThreeRank
+    end
+
+    -- Flush
+    if isFlush then
+        return Hands.FLUSH, highestRank
+    end
+
+    -- Straight
+    if isStraight then
+        return Hands.STRAIGHT, highestRank
+    end
+
+    -- Three of a kind
+    if hasThree then
+        return Hands.THREE_KIND, hasThreeRank
+    end
+
+    -- Two pair
+    if hasTwoPair then
+        return Hands.TWO_PAIR, hasPairsRank
+    end
+
+    -- Pair
+    if hasPair then
+        return Hands.PAIR, hasPairsRank, highestRank, rankTable
+    end
+
+    -- High Card
+    return Hands.HIGH_CARD, highestRank, rankTable
 end
 
 function EVENT:GetWinningPlayer()
-    local winningHand = 0
+    if not self.Started then
+        self:End()
+        return
+    end
+
+    local winningHandRank = Hands.NONE
     local winningPlayer = nil
+    local winningHighestCardRank = Cards.NONE
+    local winningRanksTbl = nil
 
     for _, ply in ipairs(self.Players) do
         if ply.Status == BettingStatus.FOLD then
             continue
         end
 
-        local rank = GetHandRank(ply)
+        local newHandRank, newHighestCardRank, newRanksTbl = GetHandRank(ply)
 
-        if rank == Hands.NINE_OF_DIAMONDS then
-            return ply
-        elseif rank > winningHand then
-            winningHand = rank
+        local function AssignNewWinner()
+            winningHandRank = newHandRank
             winningPlayer = ply
-        elseif rank == winningHand then
-            -- Compare rank (i.e. 'num') of hands, determine winner
+            winningHighestCardRank = newHighestCardRank
+            winningRanksTbl = newRanksTbl
+        end
+
+        if newHandRank == Hands.NINE_OF_DIAMONDS then
+            return ply
+        elseif newHandRank > winningHandRank then
+            AssignNewWinner()
+        elseif newHandRank == winningHandRank then
+            if newHighestCardRank > winningHighestCardRank then
+                AssignNewWinner()
+            elseif newestHighestCardRank == winningHighestCardRank then
+                for i = 4, 1, -1 do
+                    if winningRanksTbl[i] > newRanksTbl[i] then
+                        break
+                    elseif winningRanksTbl[i] < newRanksTbl[i] then
+                        AssignNewWinner()
+                    end
+                end
+            end
         end
     end
 
-    if winningHand == 0 or winningPlayer = nil then
+    if winningHandRank == 0 or winningPlayer = nil then
         -- Error state, should always be able to calc a winner
     end
 
     return winningPlayer
 end
 
-function EVENT:CalculateRewards(winner)
-    -- Calculates how much HP
-end
+function EVENT:ApplyRewards(winner)
+    if not self.Started then
+        self:End()
+        return
+    end
 
-function EVENT:ApplyRewards(rewards)
-    --Give the winner their HP, reduce everyone else's
+    local runningHealth = 0
+
+    for _, ply in ipairs(self.Players) do
+        if ply == winner then
+            continue
+        end
+
+        local bet = self.PlayerBets[ply]
+        local betPercent = bet * 0.25
+        local health = ply:Health()
+        local healthToLose = math.Round(health * betPercent)
+
+        runningHealth = runningHealth + healthToLose
+        ply:SetMaxHealth(ply:GetMaxHealth() - healthToLose)
+
+        if bet == Bets.ALL then
+            ply:Kill()
+        else
+            ply:SetHealth(ply:GetHealth - healthToLose)
+        end        
+    end
+
+    winner:SetMaxHealth(winner:GetMaxHealth() + runningHealth)
+    winner:SetHealth(winner:Health() + runningHealth)
 end
 
 -- Called when an event is stopped. Used to do manual cleanup of processes started in the event.
@@ -509,7 +726,7 @@ net.Receive("MakeDiscard", function(len, ply)
 
     for i = 1, numCards do
         table.insert(cardsBeingDiscarded, {
-            num = net.ReadUInt(5),
+            rank = net.ReadUInt(5),
             suit = net.ReadUInt(3)
         })
     end
