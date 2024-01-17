@@ -10,18 +10,22 @@ function EVENT:SetupPanel()
     -- Set up the base panel here
     self.PanelActive = true
 
-    self.PokerMain = vgui.Create("DFrame", nil, "Poker Randomate Main Frame")
-    self.PokerMain:SetSize(100, 100)
-    self.PokerMain:SetPos(ScrW() - self.PokerMain:GetWide(), 100)
+    self.PokerMain = vgui.Create("DFrame", nil, "Poker Randomat Frame")
+    self.PokerMain:SetSize(500, 500)
+    self.PokerMain:SetPos(ScrW() - self.PokerMain:GetWide(), 200)
     self.PokerMain:SetTitle("")
 	self.PokerMain:SetVisible(true)
 	self.PokerMain:SetDraggable(false)
 	self.PokerMain:ShowCloseButton(false)
+    self.PokerMain.Paint = function()
+        --Set background color here?
+    end
 
+    self.PokerPlayers = vgui.Create("Poker_AllPlayerCards", self.PokerMain)
+    self.PokerPlayers:SetPlayers(self.Players)
 end
 
 function EVENT:ClosePanel()
-    -- Close base panel
     self.PanelActive = false
     self.PokerMain:Close()
 end
@@ -49,6 +53,8 @@ net.Receive("StartPokerRandomat", function()
             selfIsPlaying = true
         end
     end
+
+    -- TODO probably sort the players table so the "first" in it is the player to the "left" of LocalPlayer
 
     EVENT:RegisterPlayers(players, selfIsPlaying)
 

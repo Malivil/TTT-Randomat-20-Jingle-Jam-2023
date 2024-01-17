@@ -130,10 +130,7 @@ end
 
 -- Called once all the players' clients have responded to the initial net message starting the randomat
 function EVENT:StartGame()
-    if not self.Started then
-        self:End()
-        return
-    end
+    if not self.Started then self:End() return end
 
     local smallBlind = self.Players[1]
     local bigBlind = self.Players[2]
@@ -156,10 +153,7 @@ end
 
 -- Called to generate a deck of cards and shuffle them
 function EVENT:GenerateDeck()
-    if not self.Started then
-        self:End()
-        return
-    end
+    if not self.Started then self:End() return end
 
     self.Deck = {}
 
@@ -177,10 +171,7 @@ end
 
 -- Called to deal a generated deck of cards out to all participating players
 function EVENT:DealDeck()
-    if not self.Started then
-        self:End()
-        return
-    end
+    if not self.Started then self:End() return end
 
     for _, ply in ipairs(self.Players) do
         if self.Players.Status == BettingStatus.FOLD then
@@ -221,10 +212,7 @@ end
 
 -- Called to mark a player as starting their turn to bet
 function EVENT:BeginBetting(optionalPlayer)
-    if not self.Started then
-        self:End()
-        return
-    end
+    if not self.Started then self:End() return end
 
     self.ExpectantBetter = nil
 
@@ -284,10 +272,7 @@ end
 
 -- Called to register a player's bet (or lack thereof) - Bet is assumed to be the truth, determines if a bet was a fold, check, call, or raise
 function EVENT:RegisterPlayerBet(ply, bet)
-    if not self.Started then
-        self:End()
-        return
-    end
+    if not self.Started then self:End() return end
 
     -- If we receive a bet when we're not expecting (and it isn't a fold), ignore it
     if not self.ExpectantBetter and not bet == 0 then
@@ -359,10 +344,7 @@ function EVENT:RegisterPlayerBet(ply, bet)
 end
 
 function EVENT:BeginDiscarding()
-    if not self.Started then
-        self:End()
-        return
-    end
+    if not self.Started then self:End() return end
 
     net.Start("StartDiscard")
         net.WriteUInt(30, 6) -- TODO Turn 30 into a ConVar
@@ -391,10 +373,7 @@ local function AllPlayersDiscarded()
 end
 
 function EVENT:RegisterPlayerDiscard(ply, discardsTable)
-    if not self.Started then
-        self:End()
-        return
-    end
+    if not self.Started then self:End() return end
 
     if not self.AcceptingDiscards then return end
 
@@ -420,10 +399,7 @@ function EVENT:RegisterPlayerDiscard(ply, discardsTable)
 end
 
 function EVENT:CalculateWinner()
-    if not self.Started then
-        self:End()
-        return
-    end
+    if not self.Started then self:End() return end
 
     local winner = self:GetWinningPlayer()
 
@@ -584,10 +560,7 @@ local function GetHandRank(ply)
 end
 
 function EVENT:GetWinningPlayer()
-    if not self.Started then
-        self:End()
-        return
-    end
+    if not self.Started then self:End() return end
 
     local winningHandRank = Hands.NONE
     local winningPlayer = nil
@@ -635,10 +608,7 @@ function EVENT:GetWinningPlayer()
 end
 
 function EVENT:ApplyRewards(winner)
-    if not self.Started then
-        self:End()
-        return
-    end
+    if not self.Started then self:End() return end
 
     local runningHealth = 0
 
