@@ -1,9 +1,52 @@
 --// Logan Christianson
 
-local PlayerCard = {}
+local LoganPanel = {}
+LoganPanel.Font = "Trebuchet22"
+
+function LoganPanel:SetFont(newFont)
+    self.Font = newFont
+end
+
+-- Don't register this, it's used as a base for other vgui elements
+
+local LoganButton = table.Copy(LoganPanel)
+LoganButton.IsHover = false
+LoganButton.Disabled = false
+LoganButton.CustomDoClick = function() end
+
+function LoganButton:SetDisabled(newDisabled)
+    self.Disabled = newDisabled
+end
+
+function LoganButton:SetHover(newHover)
+    self.IsHover = newHover
+end
+
+function LoganButton:OnCursorEntered()
+    if not self.Disabled then
+        self.IsHover = true
+    end
+end
+
+function LoganButton:OnCursorExited()
+    self.IsHover = false
+end
+
+function LoganButton:SetDoClick(doClickFunc)
+    this.CustomDoClick = doClickFunc
+end
+
+function LoganButton:DoClick()
+    if not self.Disabled then
+        self:CustomDoClick()
+    end
+end
+
+-- Don't register this, it's used as a base for other vgui elements
+
+local PlayerCard = table.Copy(LoganPanel)
 PlayerCard.Player = nil
 PlayerCard.Action = ""
-PlayerCard.Font = "Trebuchet22"
 PlayerCard.Bet = 0
 PlayerCard.NameWidth = 0
 PlayerCard.NameHeight = 0
@@ -74,9 +117,9 @@ function PlayerCard:Paint()
     surface.DrawText(self.Action)
 end
 
-vgui.Register("Poker_PlayerCard", PlayerCard, "DPanel")
+vgui.Register("Poker_PlayerPanel", PlayerCard, "DPanel")
 
-local OtherPlayers = {}
+local OtherPlayers = table.Copy(LoganPanel)
 OtherPlayers.PlayersTable = []
 OtherPlayers.PlayerCards = []
 
@@ -109,4 +152,96 @@ function OtherPlayers:SetBet(ply, bet)
     end
 end
 
-vgui.Register("Poker_AllPlayerCards", OtherPlayers, "DPanel")
+vgui.Register("Poker_AllPlayerPanels", OtherPlayers, "DPanel")
+
+local Card = table.Copy(LoganButton)
+Card.CanDraw = false
+Card.SelectedForDiscard = false
+Card.CanSelectForDiscard = false
+Card.Rank = Cards.NONE
+Card.Suit = Suits.NONE
+Card.Graphics = [
+    Suits.SAPDES = [],
+    Suits.HEARTS = [],
+    Suits.DIAMONDS = [],
+    Suits.CLUBS = []
+]
+
+function Card:SetRank(newRank)
+    self.Rank = newRank
+
+    self:UpdateCanDraw()
+end
+
+function Card:SetSuit(newSuit)
+    self.Suit = newSuit
+
+    self:UpdateCanDraw()
+end
+
+function Card:UpdateCanDraw()
+    if self.Rank > Cards.NONE and self.Suit > Suit.NONE then
+        self.CanDraw = true
+    end
+end
+
+function Card:SetCanSelectForDiscard(canDiscard)
+    self.CanSelectForDiscard = canDiscard
+end
+
+function Card:CustomDoClick()
+    if self.CanSelectForDiscard then
+        self.SelectedForDiscard = not self.SelectedForDiscard
+    end
+end
+
+function Card:Paint()
+    if not self.CanDraw then return end
+
+    --set material, draw card png
+
+    if self.SelectedForDiscard then
+        -- Card has been selected for discard
+    elseif self.CanSelectForDiscard then
+        -- (All) cards can be selected for discard
+    elseif self.Disabled then
+        -- Card has been disabled, gray overlay?
+    end
+end
+
+vgui.Register("Poker_Card", Card, "DButton")
+
+local Hand = {}
+Hand.Cards = []
+Hand.CardsToDiscard = []
+Hand.CanDiscard = false
+
+function Hand:
+
+function Hand:SetHand(newHand)
+    if #self.Cards > 0 then
+        -- For each card no longer in hand, discard
+    end
+
+    self.Cards = newHand
+
+    for _, card in ipairs(newHand) do
+        local newCard = vgui.Create("Poker_Card", self)
+        newCard:SetRank(card.Rank)
+        newCard:SetSuit(card.Suit)
+
+        table.insert(self.Cards, newCard)
+
+        -- do some animation?
+    end
+end
+
+function Hand:SetCanDiscard(canDiscard)
+    self.CanDiscard = canDiscard
+
+    for _, cardPanel in ipairs(self.Cards) do
+        cardPanel:SetCanSelectForDiscard(canDisard)
+    end
+end
+
+vgui.Register("Poker_Hand", Hand, "DPanel")

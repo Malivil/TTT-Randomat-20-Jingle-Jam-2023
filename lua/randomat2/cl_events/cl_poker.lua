@@ -18,10 +18,12 @@ function EVENT:SetupPanel()
 	self.PokerMain:SetDraggable(false)
 	self.PokerMain:ShowCloseButton(false)
     self.PokerMain.Paint = function()
-        --Set background color here?
+        --Set background color here
+        surface.SetDrawColor(180, 180, 180)
+        surface.DrawRect(0, 0, self.PokerMain:GetwWide(), self.PokerMain:GetTall())
     end
 
-    self.PokerPlayers = vgui.Create("Poker_AllPlayerCards", self.PokerMain)
+    self.PokerPlayers = vgui.Create("Poker_AllPlayerPanels", self.PokerMain)
     self.PokerPlayers:SetPlayers(self.Players)
 end
 
