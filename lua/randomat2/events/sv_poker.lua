@@ -175,7 +175,7 @@ function EVENT:DealDeck()
 
     for _, ply in ipairs(self.Players) do
         if self.Players.Status == BettingStatus.FOLD then
-            return
+            continue
         end
 
         local deckLength = #self.Deck
@@ -567,6 +567,13 @@ function EVENT:GetWinningPlayer()
     local winningHighestCardRank = Cards.NONE
     local winningRanksTbl = nil
 
+    local function AssignNewWinner(ply, newHandRank, newHighestCardRank, newRanksTbl)
+        winningHandRank = newHandRank
+        winningPlayer = ply
+        winningHighestCardRank = newHighestCardRank
+        winningRanksTbl = newRanksTbl
+    end
+
     for _, ply in ipairs(self.Players) do
         if ply.Status == BettingStatus.FOLD then
             continue
@@ -574,26 +581,19 @@ function EVENT:GetWinningPlayer()
 
         local newHandRank, newHighestCardRank, newRanksTbl = GetHandRank(ply)
 
-        local function AssignNewWinner()
-            winningHandRank = newHandRank
-            winningPlayer = ply
-            winningHighestCardRank = newHighestCardRank
-            winningRanksTbl = newRanksTbl
-        end
-
         if newHandRank == Hands.NINE_OF_DIAMONDS then
             return ply
         elseif newHandRank > winningHandRank then
-            AssignNewWinner()
+            AssignNewWinner(ply, newHandRank, newHighestCardRank, newRanksTbl)
         elseif newHandRank == winningHandRank then
             if newHighestCardRank > winningHighestCardRank then
-                AssignNewWinner()
+                AssignNewWinner(ply, newHandRank, newHighestCardRank, newRanksTbl)
             elseif newestHighestCardRank == winningHighestCardRank then
                 for i = 4, 1, -1 do
                     if winningRanksTbl[i] > newRanksTbl[i] then
                         break
                     elseif winningRanksTbl[i] < newRanksTbl[i] then
-                        AssignNewWinner()
+                        AssignNewWinner(ply, newHandRank, newHighestCardRank, newRanksTbl)
                     end
                 end
             end
@@ -628,9 +628,8 @@ function EVENT:ApplyRewards(winner)
             ply:Kill()
         else
             ply:SetHealth(ply:GetHealth - healthToLose)
+            ply:SetMaxHealth(ply:GetMaxHealth() - healthToLose)
         end
-
-        ply:SetMaxHealth(ply:GetMaxHealth() - healthToLose)
     end
 
     winner:SetMaxHealth(winner:GetMaxHealth() + runningHealth)
