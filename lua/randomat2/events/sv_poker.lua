@@ -180,9 +180,11 @@ function EVENT:DealDeck()
 
         local deckLength = #self.Deck
         ply.Cards = ply.Cards or {}
+        local cardCount = #ply.Cards
 
         net.Start("DealCards")
-            for i = #ply.Cards; 5 do
+            net.WriteUInt(5 - cardCount, 3)
+            for i = cardCount; 5 do
                 local card = table.remove(self.Deck, deckLength + 1 - i)
 
                 ply.Cards[i + 1] = card

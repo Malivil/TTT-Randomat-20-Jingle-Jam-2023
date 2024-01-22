@@ -160,12 +160,30 @@ Card.SelectedForDiscard = false
 Card.CanSelectForDiscard = false
 Card.Rank = Cards.NONE
 Card.Suit = Suits.NONE
-Card.Graphics = [
-    Suits.SAPDES = [],
-    Suits.HEARTS = [],
-    Suits.DIAMONDS = [],
-    Suits.CLUBS = []
+Card.Graphic = nil
+Card.GraphicsDir = [
+    Suits.SPADES = "vgui/ttt/randomats/poker/cards/spades/",
+    Suits.HEARTS = "vgui/ttt/randomats/poker/cards/hearts/",
+    Suits.DIAMONDS = "vgui/ttt/randomats/poker/cards/diamonds/",
+    Suits.CLUBS = "vgui/ttt/randomats/poker/cards/clubs/"
 ]
+
+-- TODO move to shared context
+local function cardRankToName(rank)
+    if rank == Cards.NONE then
+        return ""
+    elseif rank == Cards.ACE then
+        return "ace"
+    elseif rank == Cards.JACK then
+        return "jack"
+    elseif rank == Cards.QUEEN then
+        return "queen"
+    elseif rank == Cards.KING then
+        return "king"
+    else
+        return tostring(rank)
+    end
+end
 
 function Card:SetRank(newRank)
     self.Rank = newRank
@@ -182,6 +200,8 @@ end
 function Card:UpdateCanDraw()
     if self.Rank > Cards.NONE and self.Suit > Suit.NONE then
         self.CanDraw = true
+
+        self.Graphic = Material(elf.GraphicsDir[self.Suit] .. cardRankToName(self.Rank) .. ".png", "noclamp")
     end
 end
 
@@ -199,6 +219,10 @@ function Card:Paint()
     if not self.CanDraw then return end
 
     --set material, draw card png
+    surface.SetMaterial(self.Graphic)
+    surface.SetDrawColor(255, 255, 255)
+    surface.DrawTexturedRect(0, 0, self:GetWidth(), self:GetHeight())
+    draw.NoTexture()
 
     if self.SelectedForDiscard then
         -- Card has been selected for discard
@@ -206,6 +230,8 @@ function Card:Paint()
         -- (All) cards can be selected for discard
     elseif self.Disabled then
         -- Card has been disabled, gray overlay?
+        surface.SetDrawColor(170, 170, 170, 150)
+        surface.DrawRect(0, 0, self:GetWidth(), self:GetHeight())
     end
 end
 
@@ -215,8 +241,13 @@ local Hand = {}
 Hand.Cards = []
 Hand.CardsToDiscard = []
 Hand.CanDiscard = false
+Hand.CardWide = 50
+Hand.CardTall = math.Round(Hand.Cardwide * 1.4)
 
-function Hand:
+function Hand:SetCardWidth(newWidth)
+    self.CardWide = newWidth
+    self.CardTall = math.Round(Hand.Cardwide * 1.4)
+end
 
 function Hand:SetHand(newHand)
     if #self.Cards > 0 then
@@ -224,11 +255,15 @@ function Hand:SetHand(newHand)
     end
 
     self.Cards = newHand
+    local margin = 20
+    local divisableArea = (self:GetWide() - (margin * 2) - self.CardWide) / 5
 
-    for _, card in ipairs(newHand) do
+    for index, card in ipairs(newHand) do
         local newCard = vgui.Create("Poker_Card", self)
         newCard:SetRank(card.Rank)
         newCard:SetSuit(card.Suit)
+        newCard:SetSize(self.CardWide, self.CardTall)
+        newCard:SetPos(margin + (index - 1) * divisableArea, self:GetTall() * 0.5)
 
         table.insert(self.Cards, newCard)
 
@@ -245,3 +280,55 @@ function Hand:SetCanDiscard(canDiscard)
 end
 
 vgui.Register("Poker_Hand", Hand, "DPanel")
+
+local Main = table.Copy(LoganPanel)
+Main.BackgroundMat = Material("vgui/ttt/randomats/poker/poker_table.jpg")
+Main.DisplayMessageTime = 0
+Main.DisplayTemporaryMessage = false
+
+function Main:GetBackgroundColor(newColor)
+    self.BackgroundColor = newColor
+end
+
+function Main:TemporaryMessage(message)
+    self.DisplayMessageTime = CurTime() + 3
+    self.DisplayMessage = message
+end
+
+function Main:SetTitle()
+    return ""
+end
+
+function Main:SetVisible()
+    return true
+end
+
+function Main:SetDraggable()
+    return false
+end
+
+function Main:ShowCloseButton()
+    return false
+end
+
+function Main:Think()
+    if self.DisplayMessageTime > 0 and CurTime() > self.DisplayMessageTime then
+        self.DisplayTemporaryMessage = false
+        self.DisplayMessageTime = 0
+    end
+end
+
+function Main:Paint()
+    surface.SetDrawColor(255, 255, 255)
+    surface.SetMaterial(self.BackgroundMat)
+    surface.DrawTexturedRect(0, 0, self:GetwWide(), self:GetTall())
+
+    if self.DisplayTemporaryMessage then
+        surface.SetDrawColor(0, 0, 0, 150)
+        surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
+
+        draw.DrawText(self.DisplayMessage, self.Font, self:GetWide() * 0.5, self:GetTall() * 0.5, Color(255, 255, 255), TEXT_ALIGN_CENTER)
+    end
+end
+
+vgui.Register("Poker_Frame", Main, "DFrame")
