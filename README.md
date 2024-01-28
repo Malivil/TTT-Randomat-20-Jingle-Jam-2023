@@ -3,6 +3,19 @@ A pack of [Randomat 2.0](https://github.com/Malivil/TTT-Randomat-20) events crea
 
 # Events
 
+## Hard Boiled Det-EGG-tive
+_Suggested By_: Spaaz\
+Turns the detective into an egg who moves slower, and has more health and a revolver with infinite ammo.
+\
+\
+**ConVars**
+\
+_ttt_randomat_deteggtive_ - Default: 1 - Whether this event is enabled.\
+_ttt_randomat_deteggtive_min_players_ - Default: 0 - The minimum number of players required for this event to start.\
+_ttt_randomat_deteggtive_weight_ - Default: -1 - The weight this event should use during the randomized event selection process.\
+_randomat_deteggtive_health_ - Default: 200 - How much health the deteggtive should have.\
+_randomat_deteggtive_speed_mult_ - Default: 0.8 - The deteggtive's speed multiplier (e.g. 0.8 = 80% of normal speed)
+
 ## Jingle Jam 2023
 _Suggested By_: Malivil\
 "There's only one man who would DARE give me the raspberry"\
@@ -15,7 +28,7 @@ _ttt_randomat_jinglejam2023_ - Default: 1 - Whether this event is enabled.\
 _ttt_randomat_jinglejam2023_min_players_ - Default: 0 - The minimum number of players required for this event to start.\
 _ttt_randomat_jinglejam2023_weight_ - Default: -1 - The weight this event should use during the randomized event selection process.\
 _randomat_jinglejam2023_time_ - Default: 30 - How long to jam player screens for.\
-_randomat_jinglejam2023_targetall_ - Default: 0 - Whether to target all players. If disabled, only non-innocents are targetted.
+_randomat_jinglejam2023_targetall_ - Default: 0 - Whether to target all players. If disabled, only non-innocents are targeted.
 
 ## Slapstick
 _Suggested By_: The Stig\
