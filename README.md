@@ -58,6 +58,7 @@ _randomat_yeti_freeze_time_ - Default: 5 - The amount of time to freeze players 
 
 # Special Thanks
 - [Game icons](https://game-icons.net/) for the role icons
+- Spaaz for the player model used in the "Hard Boiled Det-EGG-tive" event
 - TFA, Tanki Flo, and Raven for portions of code and effects used in the Yeti Club freezing projectile
 - MGM/Brooksfilms for the sound clip from Spaceballs (1987) used at the start of the "Jingle Jam 2023" event
   - Sound is property of its respective creators/owners

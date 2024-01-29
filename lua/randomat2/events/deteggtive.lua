@@ -15,6 +15,8 @@ EVENT.id = "deteggtive"
 EVENT.Type = EVENT_TYPE_WEAPON_OVERRIDE
 EVENT.Categories = {"moderateimpact", "modelchange"}
 
+local egg_model = Model("models/hardboiled/hardboiled.mdl")
+
 function EVENT:Begin()
     local detective = nil
     for _, p in ipairs(self:GetAlivePlayers(true)) do
@@ -61,7 +63,8 @@ function EVENT:Begin()
         detective:StripWeapon(wep_class)
     end
 
-    -- TODO: Change their model
+    -- Change their model
+    Randomat:ForceSetPlayermodel(detective, egg_model)
 
     -- Prevent them from picking up non-buyable weapons
     self:AddHook("PlayerCanPickupWeapon", function(ply, wep)
@@ -86,6 +89,8 @@ function EVENT:End()
     net.Start("RdmtRemoveSpeedMultiplier")
     net.WriteString("RdmtDeteggtiveSpeed")
     net.Broadcast()
+
+    Randomat:ForceResetAllPlayermodels()
 end
 
 function EVENT:Condition()
