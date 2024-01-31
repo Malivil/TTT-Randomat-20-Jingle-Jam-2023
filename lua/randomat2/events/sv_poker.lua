@@ -317,6 +317,7 @@ function EVENT:RegisterPlayerBet(ply, bet)
 
                 net.Start("PlayerCalled")
                     net.WriteEntity(ply)
+                    net.WriteUInt(bet, 3)
                 net.Broadcast()
             end
         end

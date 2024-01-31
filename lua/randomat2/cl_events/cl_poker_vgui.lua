@@ -144,11 +144,19 @@ function OtherPlayers:SetPlayerAction(ply, action)
     end
 end
 
-function OtherPlayers:SetBet(ply, bet)
+function OtherPlayers:SetPlayerBet(ply, betType, bet)
     local card = self.PlayerCards[ply]
 
     if card then
-        card:SetBet(bet)
+        if betType == BettingStatus.FOLD then
+            card:SetFolded()
+        elseif betType == BettingStatus.CHECK then
+            -- Do nothing? Set message?
+        elseif betType == BettingStatus.CALL then
+            card:SetBet(bet)
+        elseif betType == BettingStatus.RAISE then
+            card:SetBet(bet)
+        end
     end
 end
 

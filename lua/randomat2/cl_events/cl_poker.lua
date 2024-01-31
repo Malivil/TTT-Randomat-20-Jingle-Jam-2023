@@ -39,7 +39,7 @@ end
 function EVENT:AlertBlinds(bigBlind, littleBlind)
     local textToDisplay = ""
 
-    if bigBlind == LocalPlayer() then
+    if bigBlind == self.Self then
         textToDisplay = "YOU ARE THE BIG BLIND!\nHalf of your HP has been added to the pot automatically."
     else
         textToDisplay = "The Big Blind is: " .. bigBlind:Nick() .. "."
@@ -47,15 +47,15 @@ function EVENT:AlertBlinds(bigBlind, littleBlind)
 
     textToDisplay = textToDisplay + "\n\n"
 
-    if littleBlind == LocalPlayer() then
+    if littleBlind == self.Self then
         textToDisplay = textToDisplay + "YOU ARE THE LITTLE BLIND!\nA quarter of your HP has been added to the pot automatically."
     else
         textToDisplay = textToDisplay + "The Little Blind is: " .. littleBlind:Nick() .. "."
     end
 
     self.PokerMain:TemporaryMessage(textToDisplay)
-    self:RegisterRaise(littleBlind, Bets.QUARTER)
-    self:RegisterRaise(bigBlind, Bets.HALF)
+    self:RegisterBet(littleBlind, BettingStatus.RAISE, Bets.QUARTER)
+    self:RegisterBet(bigBlind, BettingStatus.RAISE, Bets.HALF)
 end
 
 function EVENT:SetupHand()
@@ -69,12 +69,32 @@ function EVENT:SetupHand()
 end
 
 function EVENT:StartBetting(ply)
-    if ply == LocalPlayer() then
-        -- do something
+    if ply == self.Self then
         self.PokerMain:TemporaryMessage("Your turn to bet!")
+        -- Enable the available betting options
+        -- Start some timer (do we need to grab the time length from server?)
     else
-        -- do something else
+        -- Mark a player card as "isBetting", which puts some icon next to their name or in their panel or something, maybe highlight their card
     end
+end
+
+function EVENT:RegisterBet(ply, betType, betAmount)
+    self.PokerPlayers:SetPlayerBet(ply, betType, betAmount)
+end
+
+function EVENT:EndBetting()
+    -- Display some message that betting is over (if localplayer is still in the game)
+    -- Used for both phase 1 and phase 2 of betting
+end
+
+function EVENT:BeginDiscarding(timeToDiscard)
+    -- Display some message
+    -- Allow cards in hand to be selectable
+end
+
+function EVENT:RegisterWinner(winner)
+    -- Announce game winner
+    -- Disable all controls
 end
 
 net.Receive("StartPokerRandomat", function()
@@ -139,15 +159,16 @@ net.Receive("PlayerFolded", function()
 
     local foldingPlayer = net.ReadEntity()
 
-    EVENT:RegisterFold(foldingPlayer)
+    EVENT:RegisterBet(foldingPlayer, BettingStatus.FOLD)
 end)
 
 net.Receive("PlayerChecked", function()
     if not EVENT.IsPlaying then return end
 
     local checkingPlayer = net.ReadEntity()
+    local call = net.ReadUInt(3)
 
-    EVENT:RegisterCheck(checkingPlayer)
+    EVENT:RegisterBet(checkingPlayer, BettingStatus.CHECK, call)
 end)
 
 net.Receive("PlayerCalled", function()
@@ -155,7 +176,7 @@ net.Receive("PlayerCalled", function()
 
     local callingPlayer = net.ReadEntity()
 
-    EVENT:RegisterCall(callingPlayer)
+    EVENT:RegisterBet(callingPlayer, BettingStatus.CALL)
 end)
 
 net.Receive("PlayerRaised", function()
@@ -164,7 +185,7 @@ net.Receive("PlayerRaised", function()
     local raisingPlayer = net.ReadEntity()
     local raise = net.ReadUInt(3)
 
-    EVENT:RegisterRaise(raisingPlayer, raise)
+    EVENT:RegisterBet(raisingPlayer, BettingStatus.RAISE, raise)
 end)
 
 net.Receive("PlayersFinishedBetting", function()
