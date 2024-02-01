@@ -3,8 +3,8 @@
 local EVENT = {}
 
 EVENT.Self = LocalPlayer()
-EVENT.Players = []
-EVENT.Hand = []
+EVENT.Players = {}
+EVENT.Hand = {}
 EVENT.IsPlaying = false
 EVENT.CurrentlyBetting = false
 
@@ -98,7 +98,7 @@ function EVENT:RegisterWinner(winner)
 end
 
 net.Receive("StartPokerRandomat", function()
-    local players = []
+    local players = {}
     local selfIsPlaying = false
 
     local numPlayers = net.ReadUInt(3)

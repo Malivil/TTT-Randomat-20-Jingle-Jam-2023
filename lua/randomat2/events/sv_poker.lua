@@ -17,60 +17,6 @@ util.AddNetworkString("RevealHands")
 util.AddNetworkString("DeclareWinner")
 util.AddNetworkString("ClosePokerWindow")
 
--- Probably needs to be moved to a shared context - scratch that, definitely needs to
-local BettingStatus = {
-    NONE = 0,
-    FOLD = 1,
-    CHECK = 2,
-    CALL = 3,
-    RAISE = 4,
-    ALL_IN = 5
-}
-local Bets = {
-    NONE = 0,
-    QUARTER = 1,
-    HALF = 2,
-    THREEQ = 3,
-    ALL = 4
-}
-local Hands = {
-    NONE = 0,
-    HIGH_CARD = 1,
-    PAIR = 2,
-    TWO_PAIR = 3,
-    THREE_KIND = 4,
-    STRAIGHT = 5,
-    FLUSH = 6,
-    FULL_HOUSE = 7,
-    FOUR_KIND = 8,
-    STRAIGHT_FLUSH = 9,
-    ROYAL_FLUSH = 10,
-    NINE_OF_DIAMONDS = 11
-}
-local Cards = {
-    NONE = 0,
-    ACE = 1,
-    TWO = 2,
-    THREE = 3,
-    FOUR = 4,
-    FIVE = 5,
-    SIX = 6,
-    SEVEN = 7,
-    EIGHT = 8
-    NINE = 9,
-    TEN = 10,
-    JACK = 11,
-    QUEEN = 12,
-    KING = 13
-}
-local Suits = {
-    NONE = 0,
-    SPADES = 1,
-    HEARTS = 2,
-    DIAMONDS = 3,
-    CLUBS = 4
-}
-
 --// EVENT Properties
 
 local EVENT = {}
@@ -184,7 +130,7 @@ function EVENT:DealDeck()
 
         net.Start("DealCards")
             net.WriteUInt(5 - cardCount, 3)
-            for i = cardCount; 5 do
+            for i = cardCount, 5 do
                 local card = table.remove(self.Deck, deckLength + 1 - i)
 
                 ply.Cards[i + 1] = card
@@ -247,7 +193,7 @@ local function AllPlayersMatchingBets()
         if ply.Status > BettingStatus.FOLD then
             if betToCompare == 0 then -- First bet we run across
                 betToCompare = EVENT.PlayerBets[ply]
-            elseif betToCompare ~= EVENT.PlayerBets[ply] -- If there's differences in bet amounts in non-folded players
+            elseif betToCompare ~= EVENT.PlayerBets[ply] then -- If there's differences in bet amounts in non-folded players
                 return false
             end
         end
@@ -458,7 +404,7 @@ local function GetHandRank(ply)
     end
 
     -- Check for kinds
-    local suitsByRank = {[], [], [], [], [], [], [], [], [], [], [], [], []}
+    local suitsByRank = [[], [], [], [], [], [], [], [], [], [], [], [], []]
     local hasThree = false
     local hasThreeRank = Cards.NONE
     local hasPair = false
@@ -499,7 +445,7 @@ local function GetHandRank(ply)
     end
 
     -- Get table of ranks (used specifically for comparing hands when winning hands are matching pairs or high cards)
-    local rankTable = []
+    local rankTable = {}
 
     for _, card in ipairs(handCopyAsc) do
         table.insert(rankTable, card.rank)
@@ -603,7 +549,7 @@ function EVENT:GetWinningPlayer()
         end
     end
 
-    if winningHandRank == 0 or winningPlayer = nil then
+    if winningHandRank == 0 or winningPlayer == nil then
         -- Error state, should always be able to calc a winner
     end
 
@@ -630,7 +576,7 @@ function EVENT:ApplyRewards(winner)
         if bet == Bets.ALL then
             ply:Kill()
         else
-            ply:SetHealth(ply:GetHealth - healthToLose)
+            ply:SetHealth(ply:GetHealth() - healthToLose)
             ply:SetMaxHealth(ply:GetMaxHealth() - healthToLose)
         end
     end
@@ -695,7 +641,7 @@ end)
 net.Receive("MakeDiscard", function(len, ply)
     if not EVENT.Started or not EVENT.AcceptingDiscards then return end
 
-    local cardsBeingDiscarded = []
+    local cardsBeingDiscarded = {}
     local numCards = net.ReadUInt(2)
 
     for i = 1, numCards do

@@ -120,8 +120,8 @@ end
 vgui.Register("Poker_PlayerPanel", PlayerCard, "DPanel")
 
 local OtherPlayers = table.Copy(LoganPanel)
-OtherPlayers.PlayersTable = []
-OtherPlayers.PlayerCards = []
+OtherPlayers.PlayersTable = {}
+OtherPlayers.PlayerCards = {}
 
 function OtherPlayers:SetPlayers(playersTable)
     self.PlayersTable = playersTable
@@ -166,15 +166,10 @@ local Card = table.Copy(LoganButton)
 Card.CanDraw = false
 Card.SelectedForDiscard = false
 Card.CanSelectForDiscard = false
-Card.Rank = Cards.NONE
-Card.Suit = Suits.NONE
+Card.Rank = 0
+Card.Suit = 0
 Card.Graphic = nil
-Card.GraphicsDir = [
-    Suits.SPADES = "vgui/ttt/randomats/poker/cards/spades/",
-    Suits.HEARTS = "vgui/ttt/randomats/poker/cards/hearts/",
-    Suits.DIAMONDS = "vgui/ttt/randomats/poker/cards/diamonds/",
-    Suits.CLUBS = "vgui/ttt/randomats/poker/cards/clubs/"
-]
+Card.GraphicsDir = {"vgui/ttt/randomats/poker/cards/spades/", "vgui/ttt/randomats/poker/cards/hearts/", "vgui/ttt/randomats/poker/cards/diamonds/", "vgui/ttt/randomats/poker/cards/clubs/"}
 
 -- TODO move to shared context
 local function cardRankToName(rank)
@@ -246,15 +241,15 @@ end
 vgui.Register("Poker_Card", Card, "DButton")
 
 local Hand = {}
-Hand.Cards = []
-Hand.CardsToDiscard = []
+Hand.Cards = {}
+Hand.CardsToDiscard = {}
 Hand.CanDiscard = false
 Hand.CardWide = 50
-Hand.CardTall = math.Round(Hand.Cardwide * 1.4)
+Hand.CardTall = math.Round(Hand.CardWide * 1.4)
 
 function Hand:SetCardWidth(newWidth)
     self.CardWide = newWidth
-    self.CardTall = math.Round(Hand.Cardwide * 1.4)
+    self.CardTall = math.Round(Hand.CardWide * 1.4)
 end
 
 function Hand:SetHand(newHand)
