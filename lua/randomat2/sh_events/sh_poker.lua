@@ -54,3 +54,49 @@ Suits = {
     DIAMONDS = 3,
     CLUBS = 4
 }
+
+function CardRankToName(rank)
+    if rank == Cards.NONE then
+        return ""
+    elseif rank == Cards.ACE then
+        return "ace"
+    elseif rank == Cards.JACK then
+        return "jack"
+    elseif rank == Cards.QUEEN then
+        return "queen"
+    elseif rank == Cards.KING then
+        return "king"
+    else
+        return tostring(rank)
+    end
+end
+
+function BetToString(bet)
+    if bet == Bets.NONE then
+        return "No bet yet!"
+    elseif bet == Bets.QUARTER then
+        return "QUARTER"
+    elseif bet == Bets.HALF then
+        return "HALF"
+    elseif bet == Bets.THREEQ then
+        return "THREE QUARTERS"
+    elseif bet == Bets.ALL then
+        return "ALL"
+    end
+end
+
+function BetStatusToString(bettingStatus)
+    if bettingStatus == BettingStatus.NONE then
+        return "NO BET"
+    elseif bettingStatus == BettingStatus.FOLD then
+        return "FOLD"
+    elseif bettingStatus == BettingStatus.CHECK then
+        return "CHECK"
+    elseif bettingStatus == BettingStatus.CALL then
+        return "CALL"
+    elseif bettingStatus == BettingStatus.RAISE then
+        return "RAISE"
+    elseif bettingStatus == BettingStatus.ALL_IN then
+        return "ALL IN"
+    end
+end

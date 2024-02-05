@@ -2,29 +2,38 @@
 
 local EVENT = {}
 
-EVENT.Self = LocalPlayer()
 EVENT.Players = {}
 EVENT.Hand = {}
 EVENT.IsPlaying = false
 EVENT.CurrentlyBetting = false
 
 function EVENT:SetupPanel()
-    -- Set up the base panel here
     self.PanelActive = true
 
     self.PokerMain = vgui.Create("Poker_Frame", nil, "Poker Randomat Frame")
-    self.PokerMain:SetSize(500, 500)
+    self.PokerMain:SetSize(375, 500)
     self.PokerMain:SetPos(ScrW() - self.PokerMain:GetWide(), 200)
+    self.PokerMain:ShowCloseButton(false)
+    self.PokerMain:SetTitle("")
 
     self.PokerPlayers = vgui.Create("Poker_AllPlayerPanels", self.PokerMain)
-    self.PokerPlayers:SetPlayers(self.Players)
     self.PokerPlayers:SetPos(0, 0)
     self.PokerPlayers:SetSize(self.PokerMain:GetWide(), 200)
+    self.PokerPlayers:SetPlayers(self.Players)
 end
 
 function EVENT:ClosePanel()
     self.PanelActive = false
-    self.PokerMain:Close()
+
+    if self.PokerMain and self.PokerMain:IsValid() then
+        self.PokerMain:Remove()
+        self.PokerMain = nil
+    end
+
+    self.Players = {}
+    self.Hand = {}
+    self.IsPlaying = false
+    self.CurrentlyBetting = false
 end
 
 function EVENT:RegisterPlayers(newPlayersTbl, selfIsIncluded)
@@ -40,29 +49,37 @@ function EVENT:AlertBlinds(bigBlind, littleBlind)
     local textToDisplay = ""
 
     if bigBlind == self.Self then
-        textToDisplay = "YOU ARE THE BIG BLIND!\nHalf of your HP has been added to the pot automatically."
+        textToDisplay = "YOU ARE THE BIG BLIND!\nHalf of your HP has been\nadded to the pot automatically."
     else
-        textToDisplay = "The Big Blind is: " .. bigBlind:Nick() .. "."
+        textToDisplay = "The Big Blind is: " .. bigBlind:Nick()
     end
 
-    textToDisplay = textToDisplay + "\n\n"
+    textToDisplay = textToDisplay .. "\n\n"
 
     if littleBlind == self.Self then
-        textToDisplay = textToDisplay + "YOU ARE THE LITTLE BLIND!\nA quarter of your HP has been added to the pot automatically."
+        textToDisplay = textToDisplay .. "YOU ARE THE LITTLE BLIND!\nA quarter of your HP has been\nadded to the pot automatically."
     else
-        textToDisplay = textToDisplay + "The Little Blind is: " .. littleBlind:Nick() .. "."
+        textToDisplay = textToDisplay .. "The Little Blind is: " .. littleBlind:Nick()
     end
 
     self.PokerMain:TemporaryMessage(textToDisplay)
+    self.PokerPlayers:SetBlinds(littleBlind, bigBlind)
     self:RegisterBet(littleBlind, BettingStatus.RAISE, Bets.QUARTER)
     self:RegisterBet(bigBlind, BettingStatus.RAISE, Bets.HALF)
 end
 
 function EVENT:SetupHand()
-    if not self.PokerHand then
+    if not self.PokerControls or not self.PokerControls:IsValid() then
+        self.PokerControls = vgui.Create("Poker_Controls", self.PokerMain)
+        self.PokerControls:SetPos(0, self.PokerPlayers:GetTall())
+        self.PokerControls:SetSize(self.PokerMain:GetWide(), 100)
+        self.PokerControls:Setup()
+    end
+
+    if not self.PokerHand or not self.PokerHand:IsValid() then
         self.PokerHand = vgui.Create("Poker_Hand", self.PokerMain)
-        self.PokerHand:SetPos(0, self.PokerPlayers:GetTall())
-        self.PokerHand.SetSize(self.PokerMain:GetWide(), 200)
+        self.PokerHand:SetPos(0, self.PokerPlayers:GetTall() + 100)
+        self.PokerHand:SetSize(self.PokerMain:GetWide(), 200)
     end
 
     self.PokerHand:SetHand(self.Hand)
@@ -71,25 +88,34 @@ end
 function EVENT:StartBetting(ply)
     if ply == self.Self then
         self.PokerMain:TemporaryMessage("Your turn to bet!")
-        -- Enable the available betting options
-        -- Start some timer (do we need to grab the time length from server?)
+        self.PokerControls:EnableBetting(30) -- TO IMPLEMENT, TODO should be a server/client convar
     else
-        -- Mark a player card as "isBetting", which puts some icon next to their name or in their panel or something, maybe highlight their card
+        self.PokerMain:TemporaryMessage(ply:Nick() .."'s turn to bet!")
     end
+
+    self.PokerPlayers:SetPlayerAsBetting(ply)
 end
 
 function EVENT:RegisterBet(ply, betType, betAmount)
-    self.PokerPlayers:SetPlayerBet(ply, betType, betAmount)
+    if ply == LocalPlayer() and betType == BettingStatus.FOLD then
+        self.PokerMain:SetSelfFolded()
+    else
+        self.PokerPlayers:SetPlayerBet(ply, betType, betAmount)
+    end
 end
 
 function EVENT:EndBetting()
     -- Display some message that betting is over (if localplayer is still in the game)
     -- Used for both phase 1 and phase 2 of betting
+    self.PokerMain:TemporaryMessage("Betting completed!")
+    self.PokerPlayers:SetPlayerAsBetting()
+    self.PokerControls:DisableBetting() -- TO IMPLEMENT
 end
 
 function EVENT:BeginDiscarding(timeToDiscard)
-    -- Display some message
-    -- Allow cards in hand to be selectable
+    self.PokerMain:TemporaryMessage("Now, discard up to three cards!")
+    self.PokerControls:EnableDiscarding(30) -- TO IMPLEMENT -- TODO should be server/client convar
+    self.PokerHand:SetCanDiscard(true)
 end
 
 function EVENT:RegisterWinner(winner)
@@ -98,6 +124,7 @@ function EVENT:RegisterWinner(winner)
 end
 
 net.Receive("StartPokerRandomat", function()
+    EVENT.Self = LocalPlayer()
     local players = {}
     local selfIsPlaying = false
 
@@ -113,7 +140,6 @@ net.Receive("StartPokerRandomat", function()
     end
 
     -- TODO probably sort the players table so the "first" in it is the player to the "left" of LocalPlayer
-
     EVENT:RegisterPlayers(players, selfIsPlaying)
 
     if selfIsPlaying then
@@ -127,7 +153,7 @@ net.Receive("NotifyBlinds", function()
 
     local smallBlind = net.ReadEntity()
     local bigBlind = net.ReadEntity()
-
+    
     EVENT:AlertBlinds(bigBlind, smallBlind)
 end)
 
@@ -140,7 +166,7 @@ net.Receive("DealCards", function()
         local rank = net.ReadUInt(5)
         local suit = net.ReadUInt(3)
 
-        table.insert(EVENT.Hand, {rank = rank, suit = suit})
+        table.insert(EVENT.Hand, {Rank = rank, Suit = suit})
     end
 
     EVENT:SetupHand()
@@ -213,6 +239,12 @@ net.Receive("DeclareWinner", function()
     local winner = net.ReadEntity()
 
     EVENT:RegisterWinner(winner)
+end)
+
+net.Receive("DeclareNoWinner", function()
+    if not EVENT.IsPlaying then return end
+
+    EVENT:RegisterWinner()
 end)
 
 net.Receive("ClosePokerWindow", function()

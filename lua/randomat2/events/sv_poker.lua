@@ -14,6 +14,7 @@ util.AddNetworkString("StartDiscard")
 util.AddNetworkString("PlayersFinishedBetting")
 util.AddNetworkString("MakeDiscard")
 util.AddNetworkString("RevealHands")
+util.AddNetworkString("DeclareNoWinner")
 util.AddNetworkString("DeclareWinner")
 util.AddNetworkString("ClosePokerWindow")
 
@@ -23,7 +24,7 @@ local EVENT = {}
 
 EVENT.Title = "A Round Of Yogscast Poker"
 EVENT.Description = "Only if the 9 of Diamonds touch!"
-EVENT.ExtDescription = "A round of 5-Card Draw Poker, bet with your health. Up to 7 may play. Any pair, three, or four of a kind containing the 9 of Diamonds instantly wins."
+EVENT.ExtDescription = "A round of 5-Card Draw Poker (no Texas Hold 'Em, for my sake), bet with your health. Up to 7 may play. Any pair, three, or four of a kind containing the 9 of Diamonds instantly wins."
 EVENT.id = "poker"
 EVENT.MinPlayers = 2
 EVENT.Type = EVENT_TYPE_DEFAULT
@@ -32,27 +33,27 @@ EVENT.Categories = {"gamemode", "largeimpact", "fun"}
 --// My properties
 
 EVENT.MaxPlayers = 7
--- EVENT.BaseBlind = BETS.QUARTER
 EVENT.MinPlayers = 2
 EVENT.Started = false
 EVENT.Players = {}
 EVENT.Deck = {}
--- EVENT.Pot = 0
 EVENT.PlayerBets = {}
 
 --// EVENT Functions
 
 function EVENT:GeneratePlayers()
+    print("EVENT:GeneratePlayers called")
     local randomizedLivingPlayers = self:GetAlivePlayers(true)
-    local numPlayersOverMax = #randomizedLivingPlayers - maxPlayers
+    table.Shuffle(randomizedLivingPlayers)
+    local numPlayersOverMax = #randomizedLivingPlayers - self.MaxPlayers
 
     while numPlayersOverMax > 0 do
-        table.remove(randomizedLivingPlayers)
+        table.remove(randomizedLivingPlayers) -- TODO add them to a different table and send an apology message :(
         numPlayersOverMax = numPlayersOverMax - 1
     end
 
     for i = 1, #randomizedLivingPlayers do
-        local nextPlayerIndex = (i % #randomizedLivingPlayers) + 1
+        local nextPlayerIndex = (i % #randomizedLivingPlayers) + 1 -- Makes it so final player's 'next player' wraps around to [1]
         randomizedLivingPlayers[i].NextPlayer = randomizedLivingPlayers[nextPlayerIndex]
         randomizedLivingPlayers[i].Status = BettingStatus.NONE
     end
@@ -62,11 +63,17 @@ end
 
 -- Called when an event is started. Must be defined for an event to work.
 function EVENT:Begin()
+    print("EVENT:Begin called")
     self.Started = true
 
     self:GeneratePlayers()
 
-    net.Start("StartPokerRandomat") -- Should players not in this list be notified they were passed over and for what reason?
+    for _, ply in ipairs(self.Players) do
+        ply.Status = BettingStatus.NONE
+    end
+
+    -- TODO start a timer that cancels all included players which did not respond to request
+    net.Start("StartPokerRandomat")
         net.WriteUInt(#self.Players, 3)
         for _, ply in ipairs(self.Players) do
             net.WriteEntity(ply)
@@ -76,13 +83,14 @@ end
 
 -- Called once all the players' clients have responded to the initial net message starting the randomat
 function EVENT:StartGame()
+    print("EVENT:StartGame called")
     if not self.Started then self:End() return end
 
     local smallBlind = self.Players[1]
     local bigBlind = self.Players[2]
 
-    self.PlayerBets[smallBlind] = BETS.QUARTER
-    self.PlayerBets[bigBlind] = BETS.HALF
+    self:RegisterPlayerBet(smallBlind, BettingStatus.RAISE, Bets.QUARTER, true)
+    self:RegisterPlayerBet(bigBlind, BettingStatus.RAISE, Bets.HALF, true)
 
     net.Start("NotifyBlinds")
         net.WriteEntity(smallBlind)
@@ -93,12 +101,13 @@ function EVENT:StartGame()
     self:DealDeck()
 
     timer.Simple(5, function()
-        self:BeginBetting()
+        self:BeginBetting(bigBlind.NextPlayer)
     end)
 end
 
 -- Called to generate a deck of cards and shuffle them
 function EVENT:GenerateDeck()
+    print("EVENT:GenerateDeck called")
     if not self.Started then self:End() return end
 
     self.Deck = {}
@@ -117,6 +126,7 @@ end
 
 -- Called to deal a generated deck of cards out to all participating players
 function EVENT:DealDeck()
+    print("EVENT:DealDeck called")
     if not self.Started then self:End() return end
 
     for _, ply in ipairs(self.Players) do
@@ -131,7 +141,7 @@ function EVENT:DealDeck()
         net.Start("DealCards")
             net.WriteUInt(5 - cardCount, 3)
             for i = cardCount, 5 do
-                local card = table.remove(self.Deck, deckLength + 1 - i)
+                local card = table.remove(self.Deck, deckLength - i)
 
                 ply.Cards[i + 1] = card
 
@@ -143,33 +153,36 @@ function EVENT:DealDeck()
 end
 
 local function GetNextValidPlayer(ply)
-    local startingPlayer = self.Players[2]
-    local toCheck = self.Players[2]
+    local startingPlayer = ply
+    local toCheck = ply.NextPlayer
     local nextPlayer = nil
 
     while nextPlayer == nil do
-        if toCheck.status ~= BettingStatus.FOLD then
+        if toCheck.Status ~= BettingStatus.FOLD then
             nextPlayer = toCheck
         elseif toCheck == startingPlayer then
-            -- Error state, we've looped through the entire chain of nextPlayers and everyone is folded
+            EVENT:EndBetting()
         else
             toCheck = toCheck.NextPlayer
         end
     end
+
+    return nextPlayer
 end
 
 -- Called to mark a player as starting their turn to bet
 function EVENT:BeginBetting(optionalPlayer)
+    print("EVENT:BeginBetting called", optionalPlayer)
     if not self.Started then self:End() return end
 
     self.ExpectantBetter = nil
 
     if optionalPlayer and optionalPlayer.Status ~= BettingStatus.FOLD then
         self.ExpectantBetter = optionalPlayer
-    elseif self.Players[2].Status ~= BettingStatus.FOLD then
-        self.ExpectantBetter = self.Players[2]
+    elseif self.Players[2].NextPlayer.Status ~= BettingStatus.FOLD then
+        self.ExpectantBetter = self.Players[2].NextPlayer
     else
-        self.ExpectantBetter = GetNextValidPlayer(optionalPlayer or self.Player[2])
+        self.ExpectantBetter = GetNextValidPlayer(optionalPlayer or self.Players[2].NextPlayer)
     end
 
     net.Start("StartBetting")
@@ -177,8 +190,7 @@ function EVENT:BeginBetting(optionalPlayer)
     net.Broadcast()
 
     timer.Create("WaitingOnPlayerBet", 30, 1, function() -- TODO Make this into a ConVar
-        -- Player did not reply in time, player checks if possible, otherwise folds
-        EVENT:RegisterPlayerBet(EVENT.ExpectantBetter, EVENT.PlayerBets[EVENT.ExpectantBetter] or 0)
+        EVENT:RegisterPlayerBet(EVENT.ExpectantBetter, BettingStatus.CHECK, EVENT.PlayerBets[EVENT.ExpectantBetter] or 0)
     end)
 end
 
@@ -202,87 +214,119 @@ local function AllPlayersMatchingBets()
     return true
 end
 
-local function IsBetRaise(ply, bet)
+local function GetHighestBet()
     local highestBet = 0
 
-    for _, comparePly in ipairs(EVENT.Players) do
-        if comparePly ~= ply then
-            local newBet = EVENT.PlayerBets[comparePly]
+    for _, ply in ipairs(EVENT.Players) do
+        local newBet = EVENT.PlayerBets[ply]
 
-            if newBet > highestBet then
-                highestBet = newBet
-            end
+        if newBet and newBet > highestBet then
+            highestBet = newBet
         end
     end
 
-    return bet > highestBet
+    return highestBet
 end
 
--- Called to register a player's bet (or lack thereof) - Bet is assumed to be the truth, determines if a bet was a fold, check, call, or raise
-function EVENT:RegisterPlayerBet(ply, bet)
+local function ResetOtherPlayersBetStatus(ply)
+    for _, other in ipairs(EVENT.Players) do
+        if other ~= ply and other.Status ~= BettingStatus.FOLD then
+            other.Status = BettingStatus.NONE
+        end
+    end
+end
+
+local function PlayerFolds(ply)
+    print("fold")
+    ply.Status = BettingStatus.FOLD
+
+    net.Start("PlayerFolded")
+        net.WriteEntity(ply)
+    net.Broadcast()
+end
+
+local function PlayerChecks(ply)
+    print("check")
+    ply.Status = BettingStatus.CHECK
+    EVENT.PlayerBets[ply] = highestBet
+
+    net.Start("PlayerChecked")
+        net.WriteEntity(ply)
+    net.Broadcast()
+end
+
+local function PlayerCalls(ply)
+    print("call")
+    ply.Status = BettingStatus.CALL
+    EVENT.PlayerBets[ply] = highestBet
+
+    net.Start("PlayerCalled")
+        net.WriteEntity(ply)
+        --net.WriteUInt(bet, 3) -- TODO I don't even think this is necessary...
+    net.Broadcast()
+end
+
+local function PlayerRaises(ply, raise)
+    print("raise")
+    ply.Status = BettingStatus.RAISE
+    ResetOtherPlayersBetStatus(ply)
+    EVENT.PlayerBets[ply] = raise
+
+    net.Start("PlayerRaised")
+        net.WriteEntity(ply)
+        net.WriteUInt(raise, 3)
+    net.Broadcast()
+end
+
+-- Called to register a player's bet (or lack thereof)
+function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
+    print("EVENT:RegisterPlayerBet called", ply, bet, betAmount, forceBet, self.ExpectantBetter)
     if not self.Started then self:End() return end
 
     -- If we receive a bet when we're not expecting (and it isn't a fold), ignore it
-    if not self.ExpectantBetter and not bet == 0 then
+    if not self.ExpectantBetter and bet > 1 and not forceBet then
         return
     end
 
-    -- If we somehow get a check/raise/call that is late or out of order, ignore it outright (we've already assumed a check if possible)
-    if ply == self.ExpectantBetter then
-        if timer.Exists("WaitingOnPlayerBet") then
+    if ply == self.ExpectantBetter or forceBet then
+        if ply == self.ExpectantBetter and timer.Exists("WaitingOnPlayerBet") then
             timer.Remove("WaitingOnPlayerBet")
         end
 
-        local playersPreviousBet = self.PlayerBets[ply] or 0
+        local highestBet = GetHighestBet()
 
-        if bet == 0 or bet < playersPreviousBet then
-            ply.Status = BettingStatus.FOLD
-
-            net.Start("PlayerFolded")
-                net.WriteEntity(ply)
-            net.Broadcast()
-        elseif bet == playersPreviousBet then
-            -- TODO this does not check if they're expected to be calling and instead they're somehow checking
-            ply.Status = BettingStatus.CHECK
-
-            net.Start("PlayerChecked")
-                net.WriteEntity(ply)
-            net.Broadcast()
-        elseif bet > playersPreviousBet then
-            self.PlayerBets[ply] = bet
-
-            if IsBetRaise(ply, bet) then
-                ply.Status = BettingStatus.RAISE -- I'm still not certain why I necessarily care about assigning any status beyond "is folded or not"
-
-                net.Start("PlayerRaised")
-                    net.WriteEntity(ply)
-                    net.WriteUInt(bet, 3)
-                net.Broadcast()
+        if bet < BettingStatus.CHECK then
+            PlayerFolds(ply)
+        elseif bet == BettingStatus.CHECK then
+            if highestBet > betAmount then
+                PlayerFolds(ply)
             else
-                ply.Status = BettingStatus.CALL
+                PlayerChecks(ply)
+            end
+        elseif bet == BettingStatus.CALL then
+            PlayerCalls(ply)
+        elseif bet == BettingStatus.RAISE then
+            if betAmount <= highestBet then
+                print("raise -> call")
+                PlayerCalls(ply)
+            else
+                PlayerRaises(ply, betAmount)
+            end
+        else
+            error(ply:Nick() .. " is sending net messages manually...")
+        end
 
-                net.Start("PlayerCalled")
-                    net.WriteEntity(ply)
-                    net.WriteUInt(bet, 3)
+        if not forceBet then
+            if AllPlayersMatchingBets() then
+                net.Start("PlayersFinishedBetting")
                 net.Broadcast()
+
+                self:EndBetting()
+            else
+                self:BeginBetting(GetNextValidPlayer(ply))
             end
         end
-
-        if AllPlayersMatchingBets() then
-            net.Start("PlayersFinishedBetting")
-            net.Broadcast()
-
-            timer.Simple(5, function()
-                if not self.HaveDiscarded then
-                    self:BeginDiscarding()
-                else
-                    self:CalculateWinner()
-                end
-            end)
-        else
-            self:BeginBetting(GetNextValidPlayer(ply))
-        end
-    elseif bet == 0 then
+    elseif bet < BettingStatus.CHECK then
         -- Out of sync player fold, used primarily for player disconnecting/death
         ply.Status = BettingStatus.FOLD
 
@@ -292,7 +336,35 @@ function EVENT:RegisterPlayerBet(ply, bet)
     end
 end
 
+local function EnoughPlayersRemaining()
+    local bool atLeastOne = false
+
+    for _, ply in ipairs(EVENT.Players) do
+        if ply.Status > BettingStatus.FOLD then
+            if atLeastOne then
+                return true
+            else
+                atLeastOne = true
+            end
+        end
+    end
+
+    return false
+end
+
+function EVENT:EndBetting()
+    print("EVENT:EndBetting called")
+    timer.Simple(5, function()
+        if self.HaveDiscarded or EnoughPlayersRemaining() then
+            self:CalculateWinner()
+        else
+            self:BeginDiscarding()
+        end
+    end)
+end
+
 function EVENT:BeginDiscarding()
+    print("EVENT:BeginDiscarding called")
     if not self.Started then self:End() return end
 
     net.Start("StartDiscard")
@@ -322,6 +394,7 @@ local function AllPlayersDiscarded()
 end
 
 function EVENT:RegisterPlayerDiscard(ply, discardsTable)
+    print("EVENT:RegisterPlayerDiscard called", ply, discardsTable)
     if not self.Started then self:End() return end
 
     if not self.AcceptingDiscards then return end
@@ -348,16 +421,23 @@ function EVENT:RegisterPlayerDiscard(ply, discardsTable)
 end
 
 function EVENT:CalculateWinner()
+    print("EVENT:CalculateWinner called")
     if not self.Started then self:End() return end
 
     local winner = self:GetWinningPlayer()
 
-    net.Start("DeclareWinner")
-        net.WriteEntity(winner)
-        --Should we also send ALL card info here? You get to see your opponent's hands normally
-    net.Broadcast()
+    if winner == nil then
+        -- Everyone died! Cancel the game
+        net.Start("DeclareNoWinner")
+        net.Broadcast()
+    else
+        net.Start("DeclareWinner")
+            net.WriteEntity(winner)
+            --Should we also send ALL card info here? You get to see your opponent's hands normally
+        net.Broadcast()
 
-    self:ApplyRewards(winner)
+        self:ApplyRewards(winner)
+    end
 
     timer.Simple(5, function()
         self:End()
@@ -509,6 +589,7 @@ local function GetHandRank(ply)
 end
 
 function EVENT:GetWinningPlayer()
+    print("EVENT:GetWinningPlayer called")
     if not self.Started then self:End() return end
 
     local winningHandRank = Hands.NONE
@@ -549,14 +630,11 @@ function EVENT:GetWinningPlayer()
         end
     end
 
-    if winningHandRank == 0 or winningPlayer == nil then
-        -- Error state, should always be able to calc a winner
-    end
-
     return winningPlayer
 end
 
 function EVENT:ApplyRewards(winner)
+    print("EVENT:ApplyRewards called", winner)
     if not self.Started then self:End() return end
 
     local runningHealth = 0
@@ -576,8 +654,8 @@ function EVENT:ApplyRewards(winner)
         if bet == Bets.ALL then
             ply:Kill()
         else
-            ply:SetHealth(ply:GetHealth() - healthToLose)
-            ply:SetMaxHealth(ply:GetMaxHealth() - healthToLose)
+            ply:SetHealth(math.max(1, ply:GetHealth() - healthToLose))
+            ply:SetMaxHealth(math.max(1, ply:GetMaxHealth() - healthToLose))
         end
     end
 
@@ -587,8 +665,12 @@ end
 
 -- Called when an event is stopped. Used to do manual cleanup of processes started in the event.
 function EVENT:End()
+    print("EVENT:End called")
     self.Started = false
     self.AcceptingDiscards = false
+    self.Players = {}
+    self.Deck = {}
+    self.PlayerBets = {}
 
     net.Start("ClosePokerWindow")
     net.Broadcast()
@@ -602,7 +684,7 @@ end
 
 local function AllPlayersReady(playerTable)
     for _, ply in ipairs(playerTable) do
-        if ply.Ready == nil || not ply.Ready then
+        if not ply:IsBot() && (ply.Ready == nil || not ply.Ready) then
             return false
         end
     end
@@ -612,6 +694,7 @@ end
 
 -- TODO Logic should get shifted into an EVENT:function
 net.Receive("StartPokerRandomatCallback", function(len, ply)
+    print("net message received: StartPokerRandomatCallback")
     if not EVENT.Started then return end
 
     if not timer.Exists("PokerStartTimeout") then
@@ -623,7 +706,10 @@ net.Receive("StartPokerRandomatCallback", function(len, ply)
     end
 
     -- TODO check if player we're receiving is supposed to be play the game
-    EVENT.Players[ply].Ready = true
+    -- if EVENT.Players[ply] then
+    --     EVENT.Players[ply].Ready = true
+    -- end
+    ply.Ready = true
 
     if AllPlayersReady(EVENT.Players) then
         EVENT:StartGame()
@@ -633,9 +719,10 @@ end)
 net.Receive("MakeBet", function(len, ply)
     if not EVENT.Started then return end
 
-    local healthBeingBet = net.ReadUInt(7)
+    local betAmt = net.ReadUInt(3)
+    local bet = net.ReadUInt(3)
 
-    EVENT:RegisterPlayerBet(ply, healthBeingBet)
+    EVENT:RegisterPlayerBet(ply, bet, betAmt)
 end)
 
 net.Receive("MakeDiscard", function(len, ply)

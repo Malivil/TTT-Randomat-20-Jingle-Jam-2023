@@ -14,6 +14,9 @@ LoganButton.IsHover = false
 LoganButton.Disabled = false
 LoganButton.CustomDoClick = function() end
 
+function LoganButton:SetText(text)
+end
+
 function LoganButton:SetDisabled(newDisabled)
     self.Disabled = newDisabled
 end
@@ -45,14 +48,22 @@ end
 -- Don't register this, it's used as a base for other vgui elements
 
 local PlayerCard = table.Copy(LoganPanel)
+PlayerCard.BetIcon = Material("a")
 PlayerCard.Player = nil
-PlayerCard.Action = ""
+PlayerCard.NoPlayerName = "No Player!"
+PlayerCard.ActionText = ""
+PlayerCard.BetText = ""
+PlayerCard.BlindStatus = ""
+PlayerCard.Action = 0
 PlayerCard.Bet = 0
 PlayerCard.NameWidth = 0
 PlayerCard.NameHeight = 0
 PlayerCard.ActionWidth = 0
 PlayerCard.ActionHeight = 0
+PlayerCard.BetWidth = 0
+PlayerCard.BetHeight = 0
 PlayerCard.IsFolded = false
+PlayerCard.IsBetting = false
 
 function PlayerCard:SetFont(newfont)
     self.Font = newFont
@@ -68,18 +79,36 @@ function PlayerCard:SetPlayer(ply)
     self:CalculateNameSize()
 end
 
+function PlayerCard:SetBlindStatus(text)
+    self.BlindStatus = text
+end
+
 function PlayerCard:CalculateNameSize()
     surface.SetFont(self.Font)
 
-    self.NameWidth, self.NameHeight = surface.GetTextSize(self.Player:GetName()) -- TODO this will likely need to be cut off after enough characters
+    if self.Player then
+        self.NameWidth, self.NameHeight = surface.GetTextSize(self.Player:GetName()) -- TODO this will likely need to be cut off after enough characters
+    else
+        self.NameWidth, self.NameHeight = surface.GetTextSize(self.NoPlayerName)
+    end
 end
 
 function PlayerCard:SetBet(newBet)
     self.Bet = newBet
+    self.BetText = BetToString(self.Bet)
+
+    self:CalculateBetSize()
+end
+
+function PlayerCard:CalculateBetSize()
+    surface.SetFont(self.Font)
+
+    self.BetWidth, self.BetHeight = surface.GetTextSize(self.BetText)
 end
 
 function PlayerCard:SetAction(newAction)
     self.Action = newAction
+    self.ActionText = BetStatusToString(self.Action)
 
     self:CalculateActionSize()
 end
@@ -87,57 +116,119 @@ end
 function PlayerCard:CalculateActionSize()
     surface.SetFont(self.Font)
 
-    self.ActionWidth, self.ActionHeight = surface.GetTextSize(self.Action)
+    self.ActionWidth, self.ActionHeight = surface.GetTextSize(self.ActionText)
 end
 
 function PlayerCard:SetFolded()
     self.IsFolded = true
 end
 
+function PlayerCard:SetIsBetting(isBetting)
+    self.IsBetting = isBetting
+end
+
 function PlayerCard:Paint()
     if !self then return end
-
-    if self.IsFolded or not self.Player then
-        -- Draw a gray overlay, does this need to occur at the end?
-        -- If we move to bottom, how to check player is valid and return early?
-    end
-
-    -- surface.SetDrawColor(0, 0, 0)
-    surface.SetDrawColor(255, 255, 255)
     surface.SetFont(self.Font)
+
+    surface.SetDrawColor(0, 0, 0)
+    surface.DrawOutlinedRect(1, 1, self:GetWide() - 2, self:GetTall() - 2, 2)
+
+    if not self.Player then
+        surface.SetDrawColor(0, 0, 0, 120)
+        surface.DrawRect(1, 1, self:GetWide() - 2, self:GetTall() - 2)
+        
+        surface.SetTextColor(255, 255, 255)
+        surface.SetTextPos(self:GetWide() * 0.5 - (self.NameWidth * 0.5), self:GetTall() * 0.5 - (self.NameHeight * 0.5))
+        surface.DrawText(self.NoPlayerName)
+
+        return
+    end    
+
+    surface.SetFont("Trebuchet18")
+    surface.SetTextColor(255, 255, 255)
+    surface.SetTextPos(5, 3)
+    surface.DrawText(self.BlindStatus)
+
+    -- Name
+    surface.SetFont(self.Font)
+    surface.SetTextColor(255, 255, 255)
     surface.SetTextPos(self:GetWide() * 0.5 - (self.NameWidth * 0.5), 10)
     surface.DrawText(self.Player:GetName())
-    surface.DrawLine(self:GetWide() * 0.5 - (self.NameWidth * 0.5), 10 + self.NameHeight + 2)
+    surface.SetDrawColor(255, 255, 255)
+    surface.DrawLine(self:GetWide() * 0.5 - (self.NameWidth * 0.5), 10 + self.NameHeight, self:GetWide() * 0.5 + (self.NameWidth * 0.5), 10 + self.NameHeight)
 
-    -- Draw current bet here
-    --surface.something, text or an image?
+    -- Bet amount
+    surface.SetTextPos(self:GetWide() * 0.5 - (self.BetWidth * 0.5), self:GetTall() * 0.5 - (self.BetHeight * 0.5))
+    surface.DrawText(self.BetText)
 
-    -- Draw action here
-    surface.SetTextPos(self:GetWide() * 0.5 - (self.ActionWdith * 0.5), self:GetTall() - self.ActionHeight - 10)
-    surface.DrawText(self.Action)
+    -- Recent Action
+    surface.SetTextPos(self:GetWide() * 0.5 - (self.ActionWidth * 0.5), self:GetTall() - 10 - self.ActionHeight)
+    surface.DrawText(self.ActionText)
+
+    if self.IsBetting then
+        surface.SetDrawColor(255, 255, 255)
+        surface.SetMaterial(self.BetIcon)
+        surface.DrawTexturedRect(self:GetWide() * 0.5 + (self.NameWidth * 0.5) + 2, 10, 24, 24)
+
+        surface.SetDrawColor(255, 215, 0, 140)
+        surface.DrawOutlinedRect(4, 4, self:GetWide() - 8, self:GetTall() - 8, 4)
+    end
+
+    if self.IsFolded then
+        surface.SetDrawColor(0, 0, 0, 220)
+        surface.DrawRect(1, 1, self:GetWide() - 2, self:GetTall() - 2)
+
+        surface.SetTextColor(255, 255, 255)
+        surface.SetTextPos(self:GetWide() * 0.5 - 25, self:GetTall() * 0.5 - 5)
+        surface.DrawText("Folded!")
+    end
 end
 
 vgui.Register("Poker_PlayerPanel", PlayerCard, "DPanel")
 
 local OtherPlayers = table.Copy(LoganPanel)
 OtherPlayers.PlayersTable = {}
-OtherPlayers.PlayerCards = {}
+OtherPlayers.PlayerPanels = {}
 
 function OtherPlayers:SetPlayers(playersTable)
     self.PlayersTable = playersTable
+    table.RemoveByValue(self.PlayersTable, LocalPlayer())
 
-    for _, ply in ipairs(self.PlayersTable) do
-        if ply ~= LocalPlayer() then
-            local newCard = vgui.Create("Poker_PlayerCard", self)
-            newCard:SetPlayer(ply)
+    for i = 1, 6 do
+        local ply = self.PlayersTable[i]
+        local row2 = 0
 
-            self.PlayerCards[ply] = newCard
+        if i > 3 then row2 = 1 end
+
+        local newPanel = vgui.Create("Poker_PlayerPanel", self)
+        newPanel:SetPlayer(ply)
+        newPanel:SetSize(self:GetWide() * 0.33, self:GetTall() * 0.5)
+        newPanel:SetPos(newPanel:GetWide() * ((i - 1) % 3), newPanel:GetTall() * row2)
+
+        if ply then
+            self.PlayerPanels[ply] = newPanel
+        else
+            self.PlayerPanels[i] = newPanel
         end
     end
 end
 
+function OtherPlayers:SetBlinds(littleBlind, bigBlind)
+    local littleBlindPanel = self.PlayerPanels[littleBlind]
+    local bigBlindPanel = self.PlayerPanels[bigBlind]
+    
+    if littleBlindPanel then
+        littleBlindPanel:SetBlindStatus("LB")
+    end
+
+    if bigBlindPanel then
+        bigBlindPanel:SetBlindStatus("BB")
+    end
+end
+
 function OtherPlayers:SetPlayerAction(ply, action)
-    local card = self.PlayerCards[ply]
+    local card = self.PlayerPanels[ply]
 
     if card then
         card:SetAction(action)
@@ -145,7 +236,7 @@ function OtherPlayers:SetPlayerAction(ply, action)
 end
 
 function OtherPlayers:SetPlayerBet(ply, betType, bet)
-    local card = self.PlayerCards[ply]
+    local card = self.PlayerPanels[ply]
 
     if card then
         if betType == BettingStatus.FOLD then
@@ -160,6 +251,23 @@ function OtherPlayers:SetPlayerBet(ply, betType, bet)
     end
 end
 
+function OtherPlayers:SetPlayerAsBetting(ply)
+    for _, plyLoop in ipairs(self.PlayersTable) do
+        local card = self.PlayerPanels[plyLoop]
+
+        if not card then continue end
+
+        if ply == plyLoop then
+            card:SetIsBetting(true)
+        else
+            card:SetIsBetting(false)
+        end
+    end
+end
+
+function OtherPlayers:Paint()
+end
+
 vgui.Register("Poker_AllPlayerPanels", OtherPlayers, "DPanel")
 
 local Card = table.Copy(LoganButton)
@@ -170,23 +278,6 @@ Card.Rank = 0
 Card.Suit = 0
 Card.Graphic = nil
 Card.GraphicsDir = {"vgui/ttt/randomats/poker/cards/spades/", "vgui/ttt/randomats/poker/cards/hearts/", "vgui/ttt/randomats/poker/cards/diamonds/", "vgui/ttt/randomats/poker/cards/clubs/"}
-
--- TODO move to shared context
-local function cardRankToName(rank)
-    if rank == Cards.NONE then
-        return ""
-    elseif rank == Cards.ACE then
-        return "ace"
-    elseif rank == Cards.JACK then
-        return "jack"
-    elseif rank == Cards.QUEEN then
-        return "queen"
-    elseif rank == Cards.KING then
-        return "king"
-    else
-        return tostring(rank)
-    end
-end
 
 function Card:SetRank(newRank)
     self.Rank = newRank
@@ -201,10 +292,11 @@ function Card:SetSuit(newSuit)
 end
 
 function Card:UpdateCanDraw()
-    if self.Rank > Cards.NONE and self.Suit > Suit.NONE then
+    if self.Rank and self.Rank > Cards.NONE and self.Suit and self.Suit > Suits.NONE then
         self.CanDraw = true
+        print("UpdateCanDraw called", self.Rank, self.Suit)
 
-        self.Graphic = Material(elf.GraphicsDir[self.Suit] .. cardRankToName(self.Rank) .. ".png", "noclamp")
+        self.Graphic = Material(self.GraphicsDir[self.Suit] .. CardRankToName(self.Rank) .. ".png", "noclamp")
     end
 end
 
@@ -224,9 +316,12 @@ function Card:Paint()
     --set material, draw card png
     surface.SetMaterial(self.Graphic)
     surface.SetDrawColor(255, 255, 255)
-    surface.DrawTexturedRect(0, 0, self:GetWidth(), self:GetHeight())
+    surface.DrawTexturedRect(0, 0, self:GetWide(), self:GetTall())
     draw.NoTexture()
 
+    surface.SetDrawColor(0, 0, 0)
+    surface.DrawOutlinedRect(0, 0, self:GetWide(), self:GetTall(), 2)
+    
     if self.SelectedForDiscard then
         -- Card has been selected for discard
     elseif self.CanSelectForDiscard then
@@ -234,17 +329,17 @@ function Card:Paint()
     elseif self.Disabled then
         -- Card has been disabled, gray overlay?
         surface.SetDrawColor(170, 170, 170, 150)
-        surface.DrawRect(0, 0, self:GetWidth(), self:GetHeight())
+        surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
     end
 end
 
 vgui.Register("Poker_Card", Card, "DButton")
 
-local Hand = {}
+local Hand = table.Copy(LoganPanel)
 Hand.Cards = {}
 Hand.CardsToDiscard = {}
 Hand.CanDiscard = false
-Hand.CardWide = 50
+Hand.CardWide = 180
 Hand.CardTall = math.Round(Hand.CardWide * 1.4)
 
 function Hand:SetCardWidth(newWidth)
@@ -257,16 +352,16 @@ function Hand:SetHand(newHand)
         -- For each card no longer in hand, discard
     end
 
-    self.Cards = newHand
     local margin = 20
-    local divisableArea = (self:GetWide() - (margin * 2) - self.CardWide) / 5
-
+    local divisableArea = (self:GetWide() - (margin * 2) - self.CardWide) * 0.25
+    print("calculated values:", divisableArea * 4)
     for index, card in ipairs(newHand) do
         local newCard = vgui.Create("Poker_Card", self)
+        newCard:SetSize(self.CardWide, self.CardTall)
+        newCard:SetPos(margin + ((index - 1) * divisableArea), self:GetTall() * 0.25)
+        newCard:SetText("")
         newCard:SetRank(card.Rank)
         newCard:SetSuit(card.Suit)
-        newCard:SetSize(self.CardWide, self.CardTall)
-        newCard:SetPos(margin + (index - 1) * divisableArea, self:GetTall() * 0.5)
 
         table.insert(self.Cards, newCard)
 
@@ -282,20 +377,47 @@ function Hand:SetCanDiscard(canDiscard)
     end
 end
 
+function Hand:Paint()
+    surface.SetDrawColor(0, 0, 0)
+    surface.DrawOutlinedRect(1, 1, self:GetWide() - 2, self:GetTall() + 4, 2)
+    surface.DrawRect(self:GetWide() * 0.5 - 45, 1, 90, 34)
+
+    surface.SetFont(self.Font)
+    surface.SetTextColor(255, 255, 255)
+    surface.SetTextPos(self:GetWide() * 0.5 - 40, 5)
+    surface.DrawText("Your Hand")
+end
+
 vgui.Register("Poker_Hand", Hand, "DPanel")
+
+local Controls = table.Copy(LoganButton)
+
+function Controls:Setup()
+    -- Set up vgui buttons for fold, check, call, raise
+    -- Can only raise above last (active) player's bet
+    -- Also shows current bet
+end
+
+vgui.Register("Poker_Controls", Controls, "DButton")
 
 local Main = table.Copy(LoganPanel)
 Main.BackgroundMat = Material("vgui/ttt/randomats/poker/poker_table.jpg")
 Main.DisplayMessageTime = 0
 Main.DisplayTemporaryMessage = false
+Main.Folded = false
 
 function Main:GetBackgroundColor(newColor)
     self.BackgroundColor = newColor
 end
 
 function Main:TemporaryMessage(message)
-    self.DisplayMessageTime = CurTime() + 3
+    self.DisplayMessageTime = CurTime() + 5
+    self.DisplayTemporaryMessage = true
     self.DisplayMessage = message
+end
+
+function Main:SetSelfFolded()
+    self.Folded = true
 end
 
 function Main:SetTitle()
@@ -324,13 +446,20 @@ end
 function Main:Paint()
     surface.SetDrawColor(255, 255, 255)
     surface.SetMaterial(self.BackgroundMat)
-    surface.DrawTexturedRect(0, 0, self:GetwWide(), self:GetTall())
+    surface.DrawTexturedRect(0, 0, self:GetWide(), self:GetTall())
+end
 
-    if self.DisplayTemporaryMessage then
-        surface.SetDrawColor(0, 0, 0, 150)
-        surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
+function Main:PaintOver(currentPanelWidth, currentPanelHeight)
+    if self.Folded then
+        surface.SetDrawColor(0, 0, 0, 220)
+        surface.DrawRect(0, 0, currentPanelWidth, currentPanelHeight)
 
-        draw.DrawText(self.DisplayMessage, self.Font, self:GetWide() * 0.5, self:GetTall() * 0.5, Color(255, 255, 255), TEXT_ALIGN_CENTER)
+        draw.DrawText("Folded!", self.Font, currentPanelWidth * 0.5, currentPanelHeight * 0.5, Color(255, 255, 255), TEXT_ALIGN_CENTER)
+    elseif self.DisplayTemporaryMessage then
+        surface.SetDrawColor(0, 0, 0, 220)
+        surface.DrawRect(0, 0, currentPanelWidth, currentPanelHeight)
+
+        draw.DrawText(self.DisplayMessage, self.Font, currentPanelWidth * 0.5, currentPanelHeight * 0.5, Color(255, 255, 255), TEXT_ALIGN_CENTER)
     end
 end
 
