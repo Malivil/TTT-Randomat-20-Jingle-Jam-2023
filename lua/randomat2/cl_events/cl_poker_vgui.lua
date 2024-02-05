@@ -396,6 +396,72 @@ function Controls:Setup()
     -- Set up vgui buttons for fold, check, call, raise
     -- Can only raise above last (active) player's bet
     -- Also shows current bet
+    local margin = 20
+    local leftOverSpace = self:GetWide() - (margin * 5)
+    local buttonWidth = leftOverSpace * 0.25
+
+    local fold = vgui.Create("DButton", self)
+    fold:SetPos(margin, self:GetTall() - margin)
+    fold:SetSize(buttonWidth, margin)
+    fold:SetText(BetStatusToString(BettingStatus.FOLD))
+    fold.DoClick = function()
+    end
+    fold.Paint = function()
+    end
+
+    local check = vgui.Create("DButton", self)
+    check:SetPos(margin * 2 + buttonWidth, self:GetTall() - margin * 2)
+    check:SetSize(buttonWidth, margin)
+    check:SetText(BetStatusToString(BettingStatus.CHECK))
+    check.DoClick = function()
+    end
+    check.Paint = function()
+    end
+
+    local call = vgui.Create("DButton", self)
+    call:SetPos(margin * 3 + buttonWidth * 2, self:GetTall() - margin * 2)
+    call:SetSize(buttonWidth, margin)
+    call:SetText(BetStatusToString(BettingStatus.CALL))
+    call.DoClick = function()
+    end
+    call.Paint = function()
+    end
+
+    local raiseOpt = vgui.Create("DComboBox", self)
+    raiseOpt:SetPos(margin * 4 + buttonWidth * 3, self:GetTall() - margin * 2)
+    raiseOpt:SetSize(buttonWidth, margin)
+    raiseOpt:SetValue("Select a value")
+    raiseOpt:AddChoice(BetToString(Bets.HALF), Bets.HALF)
+    raiseOpt:AddChoice(BetToString(Bets.THREEQ), Bets.THREEQ)
+    raiseOpt:AddChoice(BetToString(Bets.ALL), Bets.ALL)
+    raiseOpt.OnSelect = function(raiseOptSelf, index, value, data)
+        
+    end
+    // fold:SetText("FOLD")
+    // fold.DoClick = function()
+    // end
+    // fold.Paint = function()
+    // end
+
+    local raise = vgui.Create("DButton", self)
+    raise:SetPos(margin * 4 + buttonWidth * 4 + 2, self:GetTall() - margin * 2)
+    raise:SetSize(buttonWidth, margin)
+    raise:SetText(BetStatusToString(BettingStatus.RAISE))
+    raise.DoClick = function()
+    end
+    raise.Paint = function()
+    end
+end
+
+function Controls:Paint()
+    surface.SetDrawColor(0, 0, 0)
+    surface.DrawOutlinedRect(1, 1, self:GetWide() - 2, self:GetTall() + 4, 2)
+    surface.DrawRect(self:GetWide() * 0.5 - 45, 1, 90, 34)
+
+    surface.SetFont(self.Font)
+    surface.SetTextColor(255, 255, 255)
+    surface.SetTextPos(self:GetWide() * 0.5 - 30, 5)
+    surface.DrawText("Controls")
 end
 
 vgui.Register("Poker_Controls", Controls, "DButton")
