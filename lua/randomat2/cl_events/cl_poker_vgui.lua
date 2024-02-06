@@ -12,10 +12,9 @@ end
 local LoganButton = table.Copy(LoganPanel)
 LoganButton.IsHover = false
 LoganButton.Disabled = false
-LoganButton.CustomDoClick = function() end
 
-function LoganButton:SetText(text)
-end
+-- function LoganButton:SetText(text)
+-- end
 
 function LoganButton:SetDisabled(newDisabled)
     self.Disabled = newDisabled
@@ -35,8 +34,7 @@ function LoganButton:OnCursorExited()
     self.IsHover = false
 end
 
-function LoganButton:SetDoClick(doClickFunc)
-    this.CustomDoClick = doClickFunc
+function LoganButton:CustomDoClick()
 end
 
 function LoganButton:DoClick()
@@ -45,7 +43,7 @@ function LoganButton:DoClick()
     end
 end
 
--- Don't register this, it's used as a base for other vgui elements
+vgui.Register("Poker_Button", LoganButton, "DButton")
 
 local PlayerCard = table.Copy(LoganPanel)
 PlayerCard.BetIcon = Material("a")
@@ -147,7 +145,7 @@ function PlayerCard:Paint()
 
     surface.SetFont("Trebuchet18")
     surface.SetTextColor(255, 255, 255)
-    surface.SetTextPos(5, 3)
+    surface.SetTextPos(6, 3)
     surface.DrawText(self.BlindStatus)
 
     -- Name
@@ -390,67 +388,79 @@ end
 
 vgui.Register("Poker_Hand", Hand, "DPanel")
 
-local Controls = table.Copy(LoganButton)
+local Controls = table.Copy(LoganPanel)
 
 function Controls:Setup()
     -- Set up vgui buttons for fold, check, call, raise
     -- Can only raise above last (active) player's bet
     -- Also shows current bet
-    local margin = 20
+    local margin = 10
     local leftOverSpace = self:GetWide() - (margin * 5)
-    local buttonWidth = leftOverSpace * 0.25
+    local buttonWidth = leftOverSpace * 0.20
+    local buttonHeight = margin * 3
 
-    local fold = vgui.Create("DButton", self)
-    fold:SetPos(margin, self:GetTall() - margin)
-    fold:SetSize(buttonWidth, margin)
-    fold:SetText(BetStatusToString(BettingStatus.FOLD))
-    fold.DoClick = function()
+    self.Fold = vgui.Create("Poker_Button", self)
+    self.Fold:SetPos(margin, self:GetTall() - buttonHeight - margin)
+    self.Fold:SetSize(buttonWidth, buttonHeight)
+    self.Fold:SetText(BetStatusToString(BettingStatus.FOLD))
+    self.Fold:SetDisabled(true)
+    self.Fold.CustomDoClick = function()
+        print("self.Fold DEBUG")
     end
-    fold.Paint = function()
-    end
+    -- self.Fold.Paint = function()
+    -- end
 
-    local check = vgui.Create("DButton", self)
-    check:SetPos(margin * 2 + buttonWidth, self:GetTall() - margin * 2)
-    check:SetSize(buttonWidth, margin)
-    check:SetText(BetStatusToString(BettingStatus.CHECK))
-    check.DoClick = function()
+    self.Check = vgui.Create("Poker_Button", self)
+    self.Check:SetPos(margin * 2 + buttonWidth, self:GetTall() - buttonHeight - margin)
+    self.Check:SetSize(buttonWidth, buttonHeight)
+    self.Check:SetText(BetStatusToString(BettingStatus.CHECK))
+    self.Check:SetEnabled(false)
+    self.Check.CustomDoClick = function()
+        print("self.Check DEBUG")
     end
-    check.Paint = function()
-    end
+    -- self.Check.Paint = function()
+    -- end
 
-    local call = vgui.Create("DButton", self)
-    call:SetPos(margin * 3 + buttonWidth * 2, self:GetTall() - margin * 2)
-    call:SetSize(buttonWidth, margin)
-    call:SetText(BetStatusToString(BettingStatus.CALL))
-    call.DoClick = function()
+    self.Call = vgui.Create("Poker_Button", self)
+    self.Call:SetPos(margin * 3 + buttonWidth * 2, self:GetTall() - buttonHeight - margin)
+    self.Call:SetSize(buttonWidth, buttonHeight)
+    self.Call:SetText(BetStatusToString(BettingStatus.CALL))
+    self.Call.CustomDoClick = function()
     end
-    call.Paint = function()
-    end
+    -- self.Call.Paint = function()
+    -- end
 
-    local raiseOpt = vgui.Create("DComboBox", self)
-    raiseOpt:SetPos(margin * 4 + buttonWidth * 3, self:GetTall() - margin * 2)
-    raiseOpt:SetSize(buttonWidth, margin)
-    raiseOpt:SetValue("Select a value")
-    raiseOpt:AddChoice(BetToString(Bets.HALF), Bets.HALF)
-    raiseOpt:AddChoice(BetToString(Bets.THREEQ), Bets.THREEQ)
-    raiseOpt:AddChoice(BetToString(Bets.ALL), Bets.ALL)
-    raiseOpt.OnSelect = function(raiseOptSelf, index, value, data)
+    self.Raise = vgui.Create("Poker_Button", self)
+    self.Raise:SetPos(margin * 4 + buttonWidth * 3, self:GetTall() - buttonHeight - margin)
+    self.Raise:SetSize(buttonWidth, buttonHeight)
+    self.Raise:SetText(BetStatusToString(BettingStatus.RAISE))
+    self.Raise.CustomDoClick = function()
+    end
+    -- self.Raise.Paint = function()
+    -- end
+
+    self.RaiseOpt = vgui.Create("DComboBox", self)
+    self.RaiseOpt:SetPos(margin * 4 + buttonWidth * 4 + 2, self:GetTall() - buttonHeight - margin)
+    self.RaiseOpt:SetSize(buttonWidth, buttonHeight)
+    self.RaiseOpt:SetValue("Bet")
+    self.RaiseOpt:AddChoice(BetToString(Bets.HALF), Bets.HALF)
+    self.RaiseOpt:AddChoice(BetToString(Bets.THREEQ), Bets.THREEQ)
+    self.RaiseOpt:AddChoice(BetToString(Bets.ALL), Bets.ALL)
+    self.RaiseOpt.OnSelect = function(raiseOptSelf, index, value, data)
         
-    end
-    // fold:SetText("FOLD")
-    // fold.DoClick = function()
-    // end
-    // fold.Paint = function()
-    // end
+    end    
+end
 
-    local raise = vgui.Create("DButton", self)
-    raise:SetPos(margin * 4 + buttonWidth * 4 + 2, self:GetTall() - margin * 2)
-    raise:SetSize(buttonWidth, margin)
-    raise:SetText(BetStatusToString(BettingStatus.RAISE))
-    raise.DoClick = function()
-    end
-    raise.Paint = function()
-    end
+function Controls:EnableBetting(time)
+
+end
+
+function Controls:DisableBetting()
+
+end
+
+function Controls:EnableDiscarding(time)
+
 end
 
 function Controls:Paint()
@@ -464,7 +474,7 @@ function Controls:Paint()
     surface.DrawText("Controls")
 end
 
-vgui.Register("Poker_Controls", Controls, "DButton")
+vgui.Register("Poker_Controls", Controls, "DPanel")
 
 local Main = table.Copy(LoganPanel)
 Main.BackgroundMat = Material("vgui/ttt/randomats/poker/poker_table.jpg")
