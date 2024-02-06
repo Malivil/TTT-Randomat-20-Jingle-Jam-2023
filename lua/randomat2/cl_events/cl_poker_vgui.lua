@@ -389,6 +389,7 @@ end
 vgui.Register("Poker_Hand", Hand, "DPanel")
 
 local Controls = table.Copy(LoganPanel)
+Controls.EnableTimer = false
 
 function Controls:Setup()
     -- Set up vgui buttons for fold, check, call, raise
@@ -452,7 +453,14 @@ function Controls:Setup()
 end
 
 function Controls:EnableBetting(time)
+    self.Fold:SetDisabled(false)
+    self.Check:SetDisabled(false)
+    self.Call:SetDisabled(false)
+    self.Raise:SetDisabled(false)
+    self.RaiseOpt:SetEnabled(true)
 
+    self.EnableTimer = true
+    self.TimeRemaining = time -- 
 end
 
 function Controls:DisableBetting()
