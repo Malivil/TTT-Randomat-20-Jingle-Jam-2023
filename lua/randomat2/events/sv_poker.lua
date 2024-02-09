@@ -489,7 +489,7 @@ local function GetHandRank(ply)
     local hasThreeRank = Cards.NONE
     local hasPair = false
     local hasTwoPair = false
-    local hasPairsRank = CARDS.NONE
+    local hasPairsRank = Cards.NONE
 
     for _, card in ipairs(hand) do
         table.insert(suitsByRank[card.rank], card.suit)
@@ -674,6 +674,13 @@ function EVENT:End()
 
     net.Start("ClosePokerWindow")
     net.Broadcast()
+
+    self.i = self.i or 1
+    self.i = self.i + 1
+
+    if self.i == 5 then
+        error("too many EVENT:End's!")
+    end
 end
 
 -- Gets tables of the convars defined for an event. Used primarily by the Randomat 2.0 ULX module to dynamically create configuration pages for each event.

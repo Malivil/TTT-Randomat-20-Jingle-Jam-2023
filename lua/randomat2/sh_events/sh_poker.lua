@@ -73,7 +73,7 @@ end
 
 function BetToString(bet)
     if bet == Bets.NONE then
-        return "No bet yet!"
+        return "NONE"
     elseif bet == Bets.QUARTER then
         return "QUARTER"
     elseif bet == Bets.HALF then
@@ -82,6 +82,8 @@ function BetToString(bet)
         return "THREE QUARTERS"
     elseif bet == Bets.ALL then
         return "ALL"
+    else
+        return ""
     end
 end
 
@@ -98,5 +100,7 @@ function BetStatusToString(bettingStatus)
         return "RAISE"
     elseif bettingStatus == BettingStatus.ALL_IN then
         return "ALL IN"
+    else
+        return ""
     end
 end

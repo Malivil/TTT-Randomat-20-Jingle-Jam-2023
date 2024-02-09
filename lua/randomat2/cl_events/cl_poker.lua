@@ -74,6 +74,7 @@ function EVENT:SetupHand()
         self.PokerControls:SetPos(0, self.PokerPlayers:GetTall())
         self.PokerControls:SetSize(self.PokerMain:GetWide(), 100)
         self.PokerControls:Setup()
+        GAMEMODE.LoganDebug = self.PokerControls
     end
 
     if not self.PokerHand or not self.PokerHand:IsValid() then
@@ -85,10 +86,11 @@ function EVENT:SetupHand()
     self.PokerHand:SetHand(self.Hand)
 end
 
-function EVENT:StartBetting(ply)
+function EVENT:StartBetting(ply, timeToBet)
     if ply == self.Self then
         self.PokerMain:TemporaryMessage("Your turn to bet!")
-        self.PokerControls:EnableBetting(30) -- TO IMPLEMENT, TODO should be a server/client convar
+        self.PokerMain:SetTimer(timeToBet)
+        self.PokerControls:EnableBetting()
     else
         self.PokerMain:TemporaryMessage(ply:Nick() .."'s turn to bet!")
     end
@@ -97,10 +99,18 @@ function EVENT:StartBetting(ply)
 end
 
 function EVENT:RegisterBet(ply, betType, betAmount)
-    if ply == LocalPlayer() and betType == BettingStatus.FOLD then
-        self.PokerMain:SetSelfFolded()
+    if ply == LocalPlayer() then
+        if betType == BettingStatus.FOLD then
+            self.PokerMain:SetSelfFolded()
+        elseif self.PokerControls then
+            self.PokerControls:SetCurrentBet(betAmount)
+        end
     else
         self.PokerPlayers:SetPlayerBet(ply, betType, betAmount)
+
+        if betType == BettingStatus.RAISE and self.PokerControls then
+            self.PokerControls:SetCurrentRaise(betAmount)
+        end
     end
 end
 
@@ -109,13 +119,18 @@ function EVENT:EndBetting()
     -- Used for both phase 1 and phase 2 of betting
     self.PokerMain:TemporaryMessage("Betting completed!")
     self.PokerPlayers:SetPlayerAsBetting()
-    self.PokerControls:DisableBetting() -- TO IMPLEMENT
+    self.PokerControls:DisableBetting()
 end
 
 function EVENT:BeginDiscarding(timeToDiscard)
     self.PokerMain:TemporaryMessage("Now, discard up to three cards!")
-    self.PokerControls:EnableDiscarding(30) -- TO IMPLEMENT -- TODO should be server/client convar
+    self.PokerMain:SetTimer(timeToDiscard)
     self.PokerHand:SetCanDiscard(true)
+end
+
+function EVENT:EndDiscard()
+    -- self.PokerMain:TemporaryMessage("Now, discard up to three cards!")
+    self.PokerHand:SetCanDiscard(false)
 end
 
 function EVENT:RegisterWinner(winner)
@@ -194,7 +209,7 @@ net.Receive("PlayerChecked", function()
     local checkingPlayer = net.ReadEntity()
     local call = net.ReadUInt(3)
 
-    EVENT:RegisterBet(checkingPlayer, BettingStatus.CHECK, call)
+    EVENT:RegisterBet(checkingPlayer, BettingStatus.CHECK)
 end)
 
 net.Receive("PlayerCalled", function()
