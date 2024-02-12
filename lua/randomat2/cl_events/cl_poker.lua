@@ -46,6 +46,7 @@ function EVENT:RegisterPlayers(newPlayersTbl, selfIsIncluded)
 end
 
 function EVENT:AlertBlinds(bigBlind, littleBlind)
+    print("EVENT:AlertBlinds called", bigBlind, littleBlind)
     local textToDisplay = ""
 
     if bigBlind == self.Self then
@@ -68,22 +69,24 @@ function EVENT:AlertBlinds(bigBlind, littleBlind)
     self:RegisterBet(bigBlind, BettingStatus.RAISE, Bets.HALF)
 end
 
-function EVENT:SetupHand()
-    if not self.PokerControls or not self.PokerControls:IsValid() then
+function EVENT:SetupControls()
+    -- if not self.PokerControls or not self.PokerControls:IsValid() then
         self.PokerControls = vgui.Create("Poker_Controls", self.PokerMain)
         self.PokerControls:SetPos(0, self.PokerPlayers:GetTall())
         self.PokerControls:SetSize(self.PokerMain:GetWide(), 100)
         self.PokerControls:Setup()
-        GAMEMODE.LoganDebug = self.PokerControls
-    end
+    -- end
+end
 
+function EVENT:SetupHand(newHand)
     if not self.PokerHand or not self.PokerHand:IsValid() then
         self.PokerHand = vgui.Create("Poker_Hand", self.PokerMain)
         self.PokerHand:SetPos(0, self.PokerPlayers:GetTall() + 100)
         self.PokerHand:SetSize(self.PokerMain:GetWide(), 200)
     end
 
-    self.PokerHand:SetHand(self.Hand)
+    self.Hand = newHand
+    self.PokerHand:SetHand(newHand)
 end
 
 function EVENT:StartBetting(ply, timeToBet)
@@ -99,16 +102,17 @@ function EVENT:StartBetting(ply, timeToBet)
 end
 
 function EVENT:RegisterBet(ply, betType, betAmount)
+    print("EVENT:Register bet", ply, betType, betAmount, self.PokerControls)
     if ply == LocalPlayer() then
         if betType == BettingStatus.FOLD then
             self.PokerMain:SetSelfFolded()
-        elseif self.PokerControls then
+        elseif self.PokerControls and betAmount then
             self.PokerControls:SetCurrentBet(betAmount)
         end
     else
         self.PokerPlayers:SetPlayerBet(ply, betType, betAmount)
 
-        if betType == BettingStatus.RAISE and self.PokerControls then
+        if betType == BettingStatus.RAISE and self.PokerControls and betAmount then
             self.PokerControls:SetCurrentRaise(betAmount)
         end
     end
@@ -129,13 +133,23 @@ function EVENT:BeginDiscarding(timeToDiscard)
 end
 
 function EVENT:EndDiscard()
-    -- self.PokerMain:TemporaryMessage("Now, discard up to three cards!")
+    self.PokerMain:TemporaryMessage("Time's up, hand is locked in!")
     self.PokerHand:SetCanDiscard(false)
 end
 
-function EVENT:RegisterWinner(winner)
-    -- Announce game winner
-    -- Disable all controls
+function EVENT:RegisterWinner(winner, hand)
+    if winner then
+        if winner == LocalPlayer() then
+            self.PokerMain:PermanentMessage("You win! Getting your bonus health now!")
+        else
+            self.PokerMain:PermanentMessage(winner:Nick() .. " wins with " .. hand .. "!")
+        end
+    else
+        self.PokerMain:PermanentMessage("Game over! No winning player!")
+    end
+
+    self.PokerHand:SetCanDiscard(false)
+    self.PokerControls:DisableBetting()
 end
 
 net.Receive("StartPokerRandomat", function()
@@ -169,6 +183,7 @@ net.Receive("NotifyBlinds", function()
     local smallBlind = net.ReadEntity()
     local bigBlind = net.ReadEntity()
     
+    EVENT:SetupControls()
     EVENT:AlertBlinds(bigBlind, smallBlind)
 end)
 
@@ -176,15 +191,16 @@ net.Receive("DealCards", function()
     if not EVENT.IsPlaying then return end
 
     local numCardsReceiving = net.ReadUInt(3)
+    local newHand = {}
 
     for i = 1, numCardsReceiving do
         local rank = net.ReadUInt(5)
         local suit = net.ReadUInt(3)
 
-        table.insert(EVENT.Hand, {Rank = rank, Suit = suit})
+        table.insert(newHand, {Rank = rank, Suit = suit})
     end
 
-    EVENT:SetupHand()
+    EVENT:SetupHand(newHand)
 end)
 
 net.Receive("StartBetting", function()
@@ -192,7 +208,7 @@ net.Receive("StartBetting", function()
 
     local newBetter = net.ReadEntity()
 
-    EVENT:StartBetting(newBetter) -- TODO Marks the start of phase 1 and phase 2 of the betting
+    EVENT:StartBetting(newBetter, 30) -- TODO make convar
 end)
 
 net.Receive("PlayerFolded", function()
@@ -238,9 +254,7 @@ end)
 net.Receive("StartDiscard", function()
     if not EVENT.IsPlaying then return end
 
-    local timeToDiscard = net.ReadUInt(6)
-
-    EVENT:BeginDiscarding(timeToDiscard)
+    EVENT:BeginDiscarding(30) -- TODO convar
 end)
 
 net.Receive("RevealHands", function()
@@ -252,8 +266,9 @@ net.Receive("DeclareWinner", function()
     if not EVENT.IsPlaying then return end
 
     local winner = net.ReadEntity()
+    local hand = net.ReadString()
 
-    EVENT:RegisterWinner(winner)
+    EVENT:RegisterWinner(winner, hand)
 end)
 
 net.Receive("DeclareNoWinner", function()

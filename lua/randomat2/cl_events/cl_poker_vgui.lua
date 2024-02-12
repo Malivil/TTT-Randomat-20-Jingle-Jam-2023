@@ -42,7 +42,7 @@ function LoganButton:DoClick()
     end
 end
 
--- vgui.Register("Poker_Button", LoganButton, "DButton")
+vgui.Register("Poker_Button", LoganButton, "DButton")
 
 local PlayerCard = table.Copy(LoganPanel)
 PlayerCard.BetIcon = Material("a")
@@ -302,7 +302,7 @@ function Card:SetCanSelectForDiscard(canDiscard)
 end
 
 function Card:CustomDoClick()
-    if self.CanSelectForDiscard then
+    if self.CanSelectForDiscard and not self.Disabled then
         self.SelectedForDiscard = not self.SelectedForDiscard
     end
 end
@@ -319,24 +319,29 @@ function Card:Paint()
     surface.SetDrawColor(0, 0, 0)
     surface.DrawOutlinedRect(0, 0, self:GetWide(), self:GetTall(), 2)
     
-    if self.SelectedForDiscard then
-        -- Card has been selected for discard
-    elseif self.CanSelectForDiscard then
-        -- (All) cards can be selected for discard
-    elseif self.Disabled then
-        -- Card has been disabled, gray overlay?
+    if self.Disabled then
+        -- Card has been disabled, gray overlay
         surface.SetDrawColor(170, 170, 170, 150)
         surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
+    elseif self.SelectedForDiscard then
+        -- Card has been selected for discard
+        surface.SetDrawColor(255, 215, 0, 140)
+        surface.DrawOutlinedRect(4, 4, self:GetWide() - 8, self:GetTall() - 8, 8)
+    elseif not self.CanSelectForDiscard then
+        -- (All) cards can be selected for discard
+        surface.SetDrawColor(100, 100, 100, 140)
+        surface.DrawOutlinedRect(4, 4, self:GetWide() - 8, self:GetTall() - 8, 8)
     end
 end
 
-vgui.Register("Poker_Card", Card, "DPanel")
+vgui.Register("Poker_Card", Card, "DButton")
 
 local Hand = table.Copy(LoganPanel)
 Hand.Cards = {}
 Hand.CardsToDiscard = {}
 Hand.CanDiscard = false
 Hand.CardWide = 180
+Hand.NumSelectCards = 0
 Hand.CardTall = math.Round(Hand.CardWide * 1.4)
 
 function Hand:SetCardWidth(newWidth)
@@ -345,13 +350,14 @@ function Hand:SetCardWidth(newWidth)
 end
 
 function Hand:SetHand(newHand)
-    if #self.Cards > 0 then
-        -- For each card no longer in hand, discard
+    for i, card in ipairs(self.Cards) do
+        card:Remove()
     end
+    table.Empty(self.Cards)
 
     local margin = 20
     local divisableArea = (self:GetWide() - (margin * 2) - self.CardWide) * 0.25
-    print("calculated values:", divisableArea * 4)
+
     for index, card in ipairs(newHand) do
         local newCard = vgui.Create("Poker_Card", self)
         newCard:SetSize(self.CardWide, self.CardTall)
@@ -359,6 +365,7 @@ function Hand:SetHand(newHand)
         newCard:SetText("")
         newCard:SetRank(card.Rank)
         newCard:SetSuit(card.Suit)
+        newCard:SetCanSelectForDiscard(false)
 
         table.insert(self.Cards, newCard)
 
@@ -371,6 +378,60 @@ function Hand:SetCanDiscard(canDiscard)
 
     for _, cardPanel in ipairs(self.Cards) do
         cardPanel:SetCanSelectForDiscard(canDisard)
+    end
+
+    if canDiscard then
+        self.DiscardButton = vgui.Create("Control_Button", self)
+        self.DiscardButton:SetPos(10, 10)
+        self.DiscardButton:SetSize(self:GetWide() * 0.5 - 65, 34)
+        self.DiscardButton:SetText("DISCARD")
+        self.DiscardButton.CustomDoClick = function()
+            self:Discard()
+        end
+    end
+end
+
+function Hand:Discard()
+    net.Start("MakeDiscard")
+        net.WriteUInt(self.NumSelectCards, 2)
+        for _, cardPanel in ipairs(self.CardsToDiscard) do
+            net.WriteUInt(cardPanel.Rank, 5)
+            net.WriteUInt(cardPanel.Suit, 3)
+        end
+    net.SendToServer()
+
+    -- self:SetCanDiscard(false)
+    for _, cardPanel in ipairs(self.Cards) do
+        -- cardPanel:SetCanSelectForDiscard(canDisard)
+        if not table.HasValue(self.CardsToDiscard, cardPanel) then
+            cardPanel:SetDisabled(true)
+        else
+
+        end
+    end
+end
+
+function Hand:Think()
+    local selectedCards = {}
+    local unselectedCards = {}
+
+    for _, cardPanel in ipairs(self.Cards) do
+        if cardPanel.SelectedForDiscard then
+            table.insert(selectedCards, cardPanel)
+        else
+            table.insert(unselectedCards, cardPanel)
+        end
+    end
+
+    self.CardsToDiscard = selectedCards
+    self.NumSelectCards = math.min(#selectedCards, 3)
+
+    for _, cardPanel in ipairs(unselectedCards) do
+        cardPanel:SetCanSelectForDiscard(self.NumSelectCards < 3)
+    end
+
+    if self.DiscardButton then
+        self.DiscardButton:SetDisabled(self.NumSelectCards < 1)
     end
 end
 
@@ -393,12 +454,14 @@ Controls.CurrentRaise = 2
 Controls.CurrentBet = 0
 
 function Controls:SetCurrentBet(amount)
+    print("SetCurrentBet called with amount: ", amount)
     self.CurrentBet = amount
 
     self:SetCurrentRaise(amount)
 end
 
 function Controls:SetCurrentRaise(amount)
+    print("SetCurrentRaise called with amount: ", amount)
     self.CurrentRaise = amount
 
     self:ResetRaiseOptions(self.CurrentRaise)
@@ -406,14 +469,12 @@ end
 
 function Controls:Setup()
     -- Set up vgui buttons for fold, check, call, raise
-    -- Can only raise above last (active) player's bet
-    -- Also shows current bet
     local margin = 10
     local leftOverSpace = self:GetWide() - (margin * 5)
     local buttonWidth = leftOverSpace * 0.20
     local buttonHeight = margin * 3
 
-    self.Fold = vgui.Create("Poker_Button", self, "Fold Button")
+    self.Fold = vgui.Create("Control_Button", self, "Fold Button")
     self.Fold:SetPos(margin, self:GetTall() - buttonHeight - margin)
     self.Fold:SetSize(buttonWidth, buttonHeight)
     self.Fold:SetText(BetStatusToString(BettingStatus.FOLD))
@@ -423,9 +484,11 @@ function Controls:Setup()
             net.WriteUInt(BettingStatus.FOLD, 3)
             net.WriteUInt(0, 3)
         net.SendToServer()
+
+        self:DisableBetting()
     end
 
-    self.Check = vgui.Create("Poker_Button", self, "Check Button")
+    self.Check = vgui.Create("Control_Button", self, "Check Button")
     self.Check:SetPos(margin * 2 + buttonWidth, self:GetTall() - buttonHeight - margin)
     self.Check:SetSize(buttonWidth, buttonHeight)
     self.Check:SetText(BetStatusToString(BettingStatus.CHECK))
@@ -435,9 +498,11 @@ function Controls:Setup()
             net.WriteUInt(BettingStatus.CHECK, 3)
             net.WriteUInt(self.CurrentBet, 3)
         net.SendToServer()
+
+        self:DisableBetting()
     end
 
-    self.Call = vgui.Create("Poker_Button", self, "Call Button")
+    self.Call = vgui.Create("Control_Button", self, "Call Button")
     self.Call:SetPos(margin * 3 + buttonWidth * 2, self:GetTall() - buttonHeight - margin)
     self.Call:SetSize(buttonWidth, buttonHeight)
     self.Call:SetText(BetStatusToString(BettingStatus.CALL))
@@ -447,21 +512,25 @@ function Controls:Setup()
             net.WriteUInt(BettingStatus.CALL, 3)
             net.WriteUInt(self.CurrentRaise, 3)
         net.SendToServer()
+
+        self:DisableBetting()
     end
 
-    self.Raise = vgui.Create("Poker_Button", self, "Raise Button")
+    self.Raise = vgui.Create("Control_Button", self, "Raise Button")
     self.Raise:SetPos(margin * 4 + buttonWidth * 3, self:GetTall() - buttonHeight - margin)
     self.Raise:SetSize(buttonWidth, buttonHeight)
     self.Raise:SetText(BetStatusToString(BettingStatus.RAISE))
     self.Raise:SetDisabled(true)
     self.Raise.CustomDoClick = function()
-        local str, val = self.RaiseOpt.GetSelected() -- TODO self is nil here?
+        local str, val = self.RaiseOpt:GetSelected()
 
         if val then
             net.Start("MakeBet")
                 net.WriteUInt(BettingStatus.RAISE, 3)
                 net.WriteUInt(val, 3)
             net.SendToServer()
+
+            self:DisableBetting()
         end
     end
 
@@ -469,7 +538,7 @@ function Controls:Setup()
     self.RaiseOpt:SetPos(margin * 4 + buttonWidth * 4 + 2, self:GetTall() - buttonHeight - margin)
     self.RaiseOpt:SetSize(buttonWidth, buttonHeight)
     self.RaiseOpt:SetSortItems(false)
-    --self.RaiseOpt:AddSpacer()
+    self.RaiseOpt:AddSpacer()
     self:ResetRaiseOptions(self.CurrentRaise)
     self.RaiseOpt.OnSelect = function(raiseOptSelf, index, value, data)
         
@@ -532,14 +601,16 @@ function Controls:Paint()
 
     surface.SetFont("Trebuchet18")
     surface.DrawRect(8, 1, 80, 34)
-    surface.SetTextPos(20, 4)
+    surface.SetTextPos(18, 4)
     surface.DrawText("Your Bet:")
     surface.SetTextPos(20, 18)
     surface.DrawText(BetToString(self.CurrentBet))
 
     surface.DrawRect(self:GetWide() - 80, 1, 72, 34)
-    surface.SetTextPos(self:GetWide() - 76, 5)
-    surface.DrawText("Max Bet: " .. BetToString(self.CurrentRaise))
+    surface.SetTextPos(self:GetWide() - 74, 4)
+    surface.DrawText("To Match:")
+    surface.SetTextPos(self:GetWide() - 72, 18)
+    surface.DrawText(BetToString(self.CurrentBet))
 end
 
 vgui.Register("Poker_Controls", Controls, "DPanel")
@@ -572,19 +643,18 @@ function ControlButton:Paint()
     surface.SetFont(self.Font)
     surface.SetTextPos(self:GetWide() * 0.5 - (self.TextWide * 0.5), self:GetTall() * 0.5 - (self.TextTall * 0.5))
     surface.DrawText(self.Text)
-    -- draw.DrawText(self.Text, self.Font, self:GetWide() * 0.5, self:GetTall() * 0.5, Color(0, 0, 0), TEXT_ALIGN_BOTTOM) -- This should be TEXT_ALIGN_CENTER
-    -- print("get tall:", self:GetTall())
     if self.Disabled then
         surface.SetDrawColor(0, 0, 0, 100)
         surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
     end
 end
 
-vgui.Register("Poker_Button", ControlButton, "DButton")
+vgui.Register("Control_Button", ControlButton, "DButton")
 
 local Main = table.Copy(LoganPanel)
 Main.BackgroundMat = Material("vgui/ttt/randomats/poker/poker_table.jpg")
 Main.DisplayMessageTime = 0
+Main.TimeRemaining = 0
 Main.DisplayTemporaryMessage = false
 Main.Folded = false
 
@@ -596,14 +666,12 @@ function Main:TemporaryMessage(message)
     self.DisplayMessageTime = CurTime() + 5
     self.DisplayTemporaryMessage = true
     self.DisplayMessage = message
+end
 
-    -- self.MessagePanel = vgui.Create("DPanel", self)
-    -- self.MessagePanel:SetPos(0, 0)
-    -- self.MessagePanel:SetSize(self:GetWide(), self:GetTall())
-    -- self.MessagePanel:SetZPos(9999)
-    -- self.MessagePanel.Paint = function()
-        
-    -- end
+function Main:PermanentMessage(message)
+    self.DisplayMessageTime = 0
+    self.DisplayTemporaryMessage = true
+    self.DisplayMessage = message
 end
 
 function Main:SetSelfFolded()
@@ -631,17 +699,23 @@ function Main:SetTimer(time)
     local height = self:GetTall()
 
     self.PolyHeader = {
-        {x = width * 0.5 + 20, y = 0},
-        {x = width * 0.5 + 10, y = 20},
-        {x = width * 0.5 - 10, y = 20},
-        {x = width * 0.5 - 20, y = 0},
+        {x = width * 0.5 + 100, y = 1},
+        {x = width * 0.5 + 80, y = 24},
+        {x = width * 0.5 - 80, y = 24},
+        {x = width * 0.5 - 100, y = 1},
     }
 
     self.ShowTimer = true
-    self.TimeRemaining = time
+    self.TimeRemaining = time or 0
     print("Main:SetTimer() called with time ", time, self.TimeRemaining)
     if not timer.Exists("PokerMainTimer") then
         timer.Create("PokerMainTimer", 1, 0, function()
+            if not self or not IsValid(self) then
+                timer.Remove("PokerMainTimer")
+
+                return
+            end
+
             if self.TimeRemaining == 0 or self.TimeRemaining == nil then
                 self.ShowTimer = false
                 timer.Remove("PokerMainTimer")
@@ -658,7 +732,6 @@ function Main:Think()
     if self.DisplayMessageTime > 0 and CurTime() > self.DisplayMessageTime and not self.Folded then
         self.DisplayTemporaryMessage = false
         self.DisplayMessageTime = 0
-        -- self.MessagePanel:Remove()
     end
 end
 
@@ -670,18 +743,16 @@ function Main:Paint()
 end
 
 function Main:PaintOver()
-    if self.ShowTimer then
-        surface.SetDrawColor(0, 0, 0)
-        surface.DrawPoly(self.PolyHeader)
-
-        draw.SimpleText(self.TimeRemaining, self.Font, self:GetWide() * 0.5, 2, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
-    end
-
     if self.Folded then
         surface.SetDrawColor(0, 0, 0, 240)
         surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
 
         draw.DrawText("Folded!", self.Font, self:GetWide() * 0.5, self:GetTall() * 0.5, Color(255, 255, 255), TEXT_ALIGN_CENTER)
+    elseif self.ShowTimer then
+        surface.SetDrawColor(0, 0, 0)
+        surface.DrawPoly(self.PolyHeader)
+
+        draw.SimpleText("Time Remaining: " .. self.TimeRemaining, self.Font, self:GetWide() * 0.5, 1, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
     elseif self.DisplayTemporaryMessage then
         surface.SetDrawColor(0, 0, 0, 240)
         surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
