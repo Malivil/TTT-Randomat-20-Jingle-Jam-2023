@@ -3,6 +3,19 @@ A pack of [Randomat 2.0](https://github.com/Malivil/TTT-Randomat-20) events crea
 
 # Events
 
+## Hard Boiled Det-EGG-tive
+_Suggested By_: Spaaz\
+Turns the detective into an egg who moves slower, and has more health and a revolver with infinite ammo.
+\
+\
+**ConVars**
+\
+_ttt_randomat_deteggtive_ - Default: 1 - Whether this event is enabled.\
+_ttt_randomat_deteggtive_min_players_ - Default: 0 - The minimum number of players required for this event to start.\
+_ttt_randomat_deteggtive_weight_ - Default: -1 - The weight this event should use during the randomized event selection process.\
+_randomat_deteggtive_health_ - Default: 200 - How much health the deteggtive should have.\
+_randomat_deteggtive_speed_mult_ - Default: 0.8 - The deteggtive's speed multiplier (e.g. 0.8 = 80% of normal speed)
+
 ## Jingle Jam 2023
 _Suggested By_: Malivil\
 "There's only one man who would DARE give me the raspberry"\
@@ -15,7 +28,19 @@ _ttt_randomat_jinglejam2023_ - Default: 1 - Whether this event is enabled.\
 _ttt_randomat_jinglejam2023_min_players_ - Default: 0 - The minimum number of players required for this event to start.\
 _ttt_randomat_jinglejam2023_weight_ - Default: -1 - The weight this event should use during the randomized event selection process.\
 _randomat_jinglejam2023_time_ - Default: 30 - How long to jam player screens for.\
-_randomat_jinglejam2023_targetall_ - Default: 0 - Whether to target all players. If disabled, only non-innocents are targetted.
+_randomat_jinglejam2023_targetall_ - Default: 0 - Whether to target all players. If disabled, only non-innocents are targeted.
+
+## Slapstick
+_Suggested By_: The Stig\
+Swaps out game sounds with funny replacements
+\
+\
+**ConVars**
+\
+_ttt_randomat_slapstick_ - Default: 1 - Whether this event is enabled.\
+_ttt_randomat_slapstick_min_players_ - Default: 0 - The minimum number of players required for this event to start.\
+_ttt_randomat_slapstick_weight_ - Default: -1 - The weight this event should use during the randomized event selection process.\
+_randomat_slapstick_endsound_ - Default: 1 - Whether to play the sound at the end of the event
 
 ## Yeti Hunt
 _Suggested By_: Kawaii Five-0\
@@ -33,5 +58,11 @@ _randomat_yeti_freeze_time_ - Default: 5 - The amount of time to freeze players 
 
 # Special Thanks
 - [Game icons](https://game-icons.net/) for the role icons
+- Spaaz for the player model used in the "Hard Boiled Det-EGG-tive" event
 - TFA, Tanki Flo, and Raven for portions of code and effects used in the Yeti Club freezing projectile
-- MGM/Brooksfilms for the sound clip used at the start of Jingle Jam 2023
+- MGM/Brooksfilms for the sound clip from Spaceballs (1987) used at the start of the "Jingle Jam 2023" event
+  - Sound is property of its respective creators/owners
+- Warner Bros. for the sound clip from Looney Tunes used as the outro for the "Slapstick" event
+  - Sounds are property of their respective creators/owners
+- [Goofy Ahh Sounds](https://steamcommunity.com/sharedfiles/filedetails/?id=2801860110) for the sounds used in the "Slapstick" event
+  - Sounds are property of their respective creators/owners
