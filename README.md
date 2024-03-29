@@ -3,6 +3,18 @@ A pack of [Randomat 2.0](https://github.com/Malivil/TTT-Randomat-20) events crea
 
 # Events
 
+## Admin Abuse
+_Suggested By_: Noxx\
+Turns the detective into an Admin with greatly increased admin power.
+\
+\
+**ConVars**
+\
+_ttt_randomat_adminabuse_ - Default: 1 - Whether this event is enabled.\
+_ttt_randomat_adminabuse_min_players_ - Default: 0 - The minimum number of players required for this event to start.\
+_ttt_randomat_adminabuse_weight_ - Default: -1 - The weight this event should use during the randomized event selection process.\
+_randomat_adminabuse_rate_ - Default: 0.3 - How often (in seconds) the Admin gains power.
+
 ## Hard Boiled Det-EGG-tive
 _Suggested By_: Spaaz\
 Turns the detective into an egg who moves slower, and has more health and a revolver with infinite ammo.

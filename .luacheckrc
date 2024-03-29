@@ -1129,7 +1129,10 @@ globals = {
 	-- JJ2023 Randomat
 	"ROLE_YETI",
     "WIN_YETI",
-    "YETI"
+    "YETI",
+
+    -- JJ2023 Roles
+    "ROLE_ADMIN"
 }
 std = {
     globals = {
