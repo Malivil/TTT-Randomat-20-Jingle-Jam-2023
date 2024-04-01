@@ -1,0 +1,49 @@
+"VertexLitGeneric" // (Shader) VertexLitGeneric is a model shader, as named, the model will be lit "per vertex" either dynamically in game, or baked into the model when using a static prop in Hammer. 
+{
+// Any parameters beginning with "//" will be ignored by the material. This is useful for deprecating something you may want to use later on, or revert back to, as well as for making comments like this one for organization and learning.
+
+// Base Parameters
+
+	"$basetexture" 			"ttt_randomat_jingle_jam_2023/cracker/cracker"		// (Texture) Determines which texture is used for your meshes surface. 
+	// "$bumpmap" 			"models/props/_nrm"		// (Texture) Determines which texture is used for fake depth and shadowing. Disables per vertex lighting for static props in all games but CS:GO. If using for a static prop, I would recommend not using a bump map most of the time.
+	"$color2"				"[1 1 1]"				// (RGB Matrix) Determines tinting of your texture. Smaller numbers in slot 1 mean less red, in slot 2, less green, slot 3, less blue, and vice versa.
+
+	"$selfillum"			"0"				// (Boolean) Determines if your mesh glows in the dark. By default, will use your basetextures alpha channel for per texel lighting. Cannot be used with $translucent without workarounds, see Valve Developer Wiki.
+	"$translucent"			"0"				// (Boolean) Determines if your mesh is transparent. By default uses your base textures alpha channel for per texel transparency. Cannot be used with $selfillum without workarounds, see Valve Developer Wiki.
+	"$halflambert"			"1"				// (Boolean) Wraps lighting further around mesh from point of lighting to prevent definition loss and provides softer shadows. Enabled automatically if using phong shading. See Valve Developer Wiki for example.
+
+
+	"$model" 				"1"				// (Boolean) Neccessary for some parameters to function, and tells Hammer not to display this for map brush textures.
+
+// Detail Textures, adds high resolution detail over your mesh to improve upclose detail.
+
+	"$detail"  				"detail\noise_detail_01"		// (Texture) Determines which texture is used for detailing.
+	"$detailscale" 			"7.74"				// (Float) Controls scale of the detail texture. Higher number means larger tiles.
+	"$detailblendfactor"  		".8"				// (Float) Controls the intensity of the detail overlay. 
+	"$detailblendmode" 		"0"				// (Integer) Determines the blend mode the overlay texture uses. Most cases use 0. Useful values are from 0 - 8.
+
+// Environment Map Reflections, adds reflections to the mesh using the envmap texture. Can cause shine issues in dark areas. For less shiny objects, it is recommended you remove this section and only use Phong Shading.
+
+	"$envmap"			"env_cubemap"			// (Texture) Determines the texture the envmap uses for reflections. Env_cubemap means it uses a maps cubemaps for accurate reflections of the surroundings.
+	"$envmaptint"			"[.15 .15 .15]"			// (RGB Matrix) Determines the intensity of each corresponding color channel for the reflections. Higher in slot 1 means more red reflections, 2 in green, 3 in blue. Equal values in all changes overall reflectivity.
+	"$normalmapalphaenvmapmask"	"1"				// (Boolean) Uses the normal maps alpha channel to determine reflectivity.
+	"$envmapfresnel"			".5"				// (Float) Adds a fresnel effect to the envmap. Also uses $phongfresnelranges to determine reflectance.
+
+// Phong Shading, provides realistic diffuse reflections, but requires a bumpmap with an alpha channel controlling reflectivity. Remove this section if you do not have a bumpmap.
+
+	// "$phong"				"1"				// (Boolean) Simply enables Phong shading.
+	// "$phongboost"			"1"				// (Float) Controls the overall brightness of the phong reflections. 
+	// "$phongexponent"			"3"				// (Float) Controls the "tightness" of the phong reflections, higher values providing smaller, but harsher edges (Smoother surface). Most cases value is negligible.
+	// "$phongexponenttexture"		"models/props/_exp		// (Texture) Determines the phont exponent per texel on your mesh. Your red channel is used for the exponent, and the green channel used for tinting if enabled.
+	// "$phongalbedotint"			"0"				// (Boolean) Tints phong reflectance using the $basetexture, this will dim and change the color of shine.
+	// "$phongfresnelranges"		"[0 .5 1]"				// (RGB Matrix) Controls the amount of fresnel Phong reflectance uses. Numbers in slot 1 multiply reflectance when facing a polygon normal, slot 2 multiply reflectance when facing a polygon from the side (90 degrees), and slot 3 multiply reflectance at the midpoint between slot 1 and 2.		
+
+	// "$phongDisableHalfLambert"		"0"				// (Boolean) Disables half labertian lighting when $phong is enabled. See $halflambert above.
+
+// Rimlighting, provides a backlighting effect to a model which shows more of the models form, requires $phong to be enabled. Not neccessarily realistic in most cases, but can be visually appealing, and is best suited for creatures, metallic objects, and objects of interest.
+
+	"$rimlight"			"1"				// (Boolean) Simply enabled Rimlighting.
+	"$rimlightexponent"       		"1"				// (Float) Controls the "tightness" of the rimlight, higher values providing smaller, but harsher edges (Smoother surface).
+	"$rimlightboost"          		"1"				// (Float) Controls the overall brightness of the rimlight. Higher values more useful for metallic items. 
+
+}
