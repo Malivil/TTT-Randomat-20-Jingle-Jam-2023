@@ -28,10 +28,50 @@ SWEP.UseHands = false
 SWEP.WorldModel = "models/ttt_randomat_jingle_jam_2023/cracker/cracker.mdl"
 SWEP.ViewModel = "models/ttt_randomat_jingle_jam_2023/cracker/cracker.mdl"
 
+-- Places a paper crown hat on someone's head
+local hatColours = {COLOR_WHITE, COLOR_BLACK, COLOR_BLUE, COLOR_RED, COLOR_GREEN}
+
+function SWEP:GiveHat(ply)
+    if CLIENT or not IsValid(ply) or IsValid(ply.hat) then return end
+    local model = "models/ttt_randomat_jingle_jam_2023/paper_crown/paper_crown.mdl"
+    local hat = ents.Create("ttt_hat_deerstalker")
+    if not IsValid(hat) then return end
+    local pos = ply:GetPos()
+    hat:SetPos(pos)
+    hat:SetAngles(ply:GetAngles())
+    hat:SetParent(ply)
+
+    -- Hat doesn't like being set a lot of the time, so attempt to create it twice
+    timer.Simple(0, function()
+        if IsValid(hat) then
+            hat:SetModel(model)
+        end
+    end)
+
+    timer.Simple(0.1, function()
+        if not IsValid(hat) then
+            hat = ents.Create("ttt_hat_deerstalker")
+            hat:SetPos(pos)
+            hat:SetAngles(ply:GetAngles())
+            hat:SetParent(ply)
+            hat:SetModel(model)
+            hat:Spawn()
+        else
+            hat:SetModel(model)
+        end
+    end)
+
+    ply.hat = hat
+    hat:Spawn()
+    hat:SetColor(hatColours[math.random(#hatColours)])
+end
+
 function SWEP:Initialize()
 end
 
 function SWEP:Deploy()
+    self:GiveHat(self:GetOwner())
+
     return true
 end
 
