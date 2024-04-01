@@ -21,6 +21,10 @@ SWEP.Primary.ClipSize = -1
 SWEP.Primary.DefaultClip = -1
 SWEP.Primary.Ammo = "none"
 SWEP.UseHands = false
+-- SWEP.WorldModel = "models/ttt_randomat_jingle_jam_2023/cracker/cracker_cracked_long.mdl"
+-- SWEP.ViewModel = "models/ttt_randomat_jingle_jam_2023/cracker/cracker_cracked_long.mdl"
+-- SWEP.WorldModel = "models/ttt_randomat_jingle_jam_2023/cracker/cracker_cracked_short.mdl"
+-- SWEP.ViewModel = "models/ttt_randomat_jingle_jam_2023/cracker/cracker_cracked_short.mdl"
 SWEP.WorldModel = "models/ttt_randomat_jingle_jam_2023/cracker/cracker.mdl"
 SWEP.ViewModel = "models/ttt_randomat_jingle_jam_2023/cracker/cracker.mdl"
 
@@ -42,8 +46,8 @@ end
 -- The worldmodel hook is for how others see the SWEP while it is held, or when on the ground
 if CLIENT then
     -- Adjust these variables to move the viewmodel's position
-    SWEP.ViewModelPos = Vector(-40, 20, -30)
-    SWEP.ViewModelAng = Vector(30, -20, -10)
+    SWEP.ViewModelPos = Vector(10, -25, -25)
+    SWEP.ViewModelAng = Vector(30, 180, -10)
     -- Adjust these variables to move the worldmodel's position
     SWEP.WorldModelPos = Vector(13, -2.7, -3.4)
     SWEP.WorldModelAng = Angle(180, 0, 0)
