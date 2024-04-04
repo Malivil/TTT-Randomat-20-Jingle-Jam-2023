@@ -78,3 +78,6 @@ _randomat_yeti_freeze_time_ - Default: 5 - The amount of time to freeze players 
   - Sounds are property of their respective creators/owners
 - [Goofy Ahh Sounds](https://steamcommunity.com/sharedfiles/filedetails/?id=2801860110) for the sounds used in the "Slapstick" event
   - Sounds are property of their respective creators/owners
+- 'Christmas Cracker.wav' by 170134 \
+Licensed under Creative Commons: By Attribution NonCommercial 3.0 License \
+https://creativecommons.org/licenses/by-nc/3.0/

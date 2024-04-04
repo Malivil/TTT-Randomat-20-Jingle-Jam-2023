@@ -40,7 +40,7 @@ SWEP.PartnerSearchHitBoxSize = 10
 SWEP.HatColours = {COLOR_WHITE, COLOR_BLACK, COLOR_GREEN, COLOR_RED, COLOR_YELLOW, COLOR_BLUE, COLOR_PINK, COLOR_ORANGE}
 
 -- How long players have to hold left-click and move backwards to open the cracker in seconds
-SWEP.OpeningDelay = 2
+SWEP.OpeningDelay = 1
 -- How many seconds to give up on opening the cracker if either player isn't trying to open it
 SWEP.OpeningResetCooldown = 1
 local hooksAdded = false
@@ -236,6 +236,7 @@ if SERVER then
             end
 
             -- Make the other player have to start holding left-click to start opening the cracker
+            -- if owner:KeyDown(IN_BACK) then
             if owner:KeyDown(IN_BACK) and partner:KeyDown(IN_ATTACK) and partner:KeyDown(IN_BACK) then
                 if not self.CrackerOpenDelay then
                     self.CrackerOpenDelay = CurTime() + self.OpeningDelay
@@ -256,7 +257,7 @@ if CLIENT then
     -- Doing the jester win effect on a player winning the cracker
     net.Receive("TTTChristmasCrackerOpen", function()
         local winner = net.ReadPlayer()
-        winner:Celebrate("birthday.wav", true)
+        winner:Celebrate("christmascrackers/cracker_open.mp3", true)
     end)
 
     -- This hacks in a viewmodel for the SWEP using its worldmodel, instead of using a proper separate v_ or c_ model (Not enough tutorials for this online...)
