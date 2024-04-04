@@ -10,7 +10,7 @@ EVENT.Categories = {"item", "largeimpact"}
 
 util.AddNetworkString("RandomatCrackersBegin")
 util.AddNetworkString("RandomatCrackersEnd")
-local crackerClass = "weapon_ttt_christmas_cracker"
+local crackerClass = "weapon_ttt_cracker"
 
 function EVENT:Begin()
     net.Start("RandomatCrackersBegin")

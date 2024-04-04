@@ -42,6 +42,8 @@ SWEP.HatColours = {COLOR_WHITE, COLOR_BLACK, COLOR_GREEN, COLOR_RED, COLOR_YELLO
 SWEP.OpeningDelay = 1
 -- How many seconds to give up on opening the cracker if either player isn't trying to open it
 SWEP.OpeningResetCooldown = 1
+-- How many times someone can try to open the cracker before it just auto-opens
+SWEP.OpenTriesLimit = 10
 
 -- Jokes displayed after winning a cracker
 local jokes = {
@@ -95,18 +97,29 @@ function SWEP:Initialize()
     end
 end
 
+SWEP.OpenTries = 0
+
 function SWEP:PrimaryAttack()
-    if CLIENT or self.ShownPrimaryAttackMessage or self.Opened then return end
+    -- Find the player someone is trying to open a cracker with
+    if CLIENT or self.Opened then return end
     local owner = self:GetOwner()
     if not IsValid(owner) then return end
     local partner = self:GetTraceEntity()
 
+    -- If they're clicking nothing, show a message to find another player
     if not IsPlayer(partner) then
-        self:ResetCrackerPartner()
-        owner:PrintMessage(HUD_PRINTCENTER, "Find a player to open this with!")
-        self.ShownPrimaryAttackMessage = true
+        if not self.ShownPrimaryAttackMessage then
+            self:ResetCrackerPartner()
+            owner:PrintMessage(HUD_PRINTCENTER, "Find a player to open this with!")
+            self.ShownPrimaryAttackMessage = true
+        end
+    else
+        -- If someone tries too many times to open their cracker, then just open it for them
+        self.OpenTries = self.OpenTries + 1
 
-        return
+        if self.OpenTries >= self.OpenTriesLimit then
+            self:OpenCracker()
+        end
     end
 end
 
@@ -114,13 +127,6 @@ function SWEP:SecondaryAttack()
     self:PrimaryAttack()
 end
 
--- function SWEP:Reload()
---     if SERVER then
---         for _, ply in player.Iterator() do
---             self:GiveHat(ply)
---         end
---     end
--- end
 if SERVER then
     -- Places a paper crown hat on someone's head
     function SWEP:GiveHat(ply)
@@ -165,16 +171,15 @@ if SERVER then
         -- Try and give a joke to the player
         for _, joke in RandomPairs(jokes) do
             if not joke.used then
-                ply:PrintMessage("Ready for your joke?")
-
-                -- Delay giving the joke, and the punchline by 5 seconds each
-                timer.Simple(5, function()
+                -- Delay giving the joke by 10 seconds
+                timer.Simple(10, function()
                     if not IsValid(ply) then return end
-                    ply:PrintMessage(joke[1])
+                    ply:ChatPrint(joke[1])
 
+                    -- Delay giving the punchline by 5 seconds after that
                     timer.Simple(5, function()
                         if not IsValid(ply) then return end
-                        ply:PrintMessage(joke[2])
+                        ply:ChatPrint(joke[2])
                     end)
                 end)
 
@@ -285,7 +290,7 @@ if SERVER then
         net.Start("TTTCrackerOpen")
         net.WritePlayer(winner)
         net.Broadcast()
-        winner:ChatPrint("You won the cracker!")
+        winner:ChatPrint("You won the cracker! You got a toy, hat and a joke!")
 
         if IsValid(loser) then
             loser:ChatPrint("You didn't win the cracker, try opening another one!")
@@ -314,6 +319,15 @@ if SERVER then
                 return
             end
 
+            -- If the player already has a cracker partner, then don't try to partner with them
+            local partnerPartner = partner:GetNWEntity("TTTCrackerPartner")
+
+            if IsValid(partnerPartner) and partnerPartner ~= owner then
+                self:ResetCrackerPartner()
+
+                return
+            end
+
             -- Set flags on the cracker-opening partners, this slows their movement speed down
             if not IsValid(owner:GetNWEntity("TTTCrackerPartner")) then
                 owner:SetNWEntity("TTTCrackerPartner", partner)
@@ -325,13 +339,13 @@ if SERVER then
                 partnerAim = partnerAim:Angle()
                 partner:SetEyeAngles(partnerAim)
                 -- Message both players what they have to do
-                owner:PrintMessage(HUD_PRINTCENTER, "Hold left-click and walk backwards!")
-                partner:PrintMessage(HUD_PRINTCENTER, "Hold left-click and walk backwards!")
+                local message = "Opening a cracker! Hold left-click and walk backwards!"
+                owner:PrintMessage(HUD_PRINTCENTER, message)
+                partner:PrintMessage(HUD_PRINTCENTER, message)
             end
 
-            -- Make the other player have to start holding left-click to start opening the cracker
-            -- if owner:KeyDown(IN_BACK) and partner:KeyDown(IN_ATTACK) and partner:KeyDown(IN_BACK) then
-            if owner:KeyDown(IN_BACK) then
+            -- Make it so either player can hold left-click and walk backwards to open the cracker, to avoid trolling from the cracker-using player
+            if owner:KeyDown(IN_BACK) or (partner:KeyDown(IN_ATTACK) and partner:KeyDown(IN_BACK)) then
                 if not self.CrackerOpenDelay then
                     self.CrackerOpenDelay = CurTime() + self.OpeningDelay
                     -- If they've held the left-click and move back buttons down long enough, the cracker opens!
