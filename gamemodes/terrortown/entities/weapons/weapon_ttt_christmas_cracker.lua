@@ -42,6 +42,32 @@ SWEP.HatColours = {COLOR_WHITE, COLOR_BLACK, COLOR_GREEN, COLOR_RED, COLOR_YELLO
 SWEP.OpeningDelay = 1
 -- How many seconds to give up on opening the cracker if either player isn't trying to open it
 SWEP.OpeningResetCooldown = 1
+
+-- Jokes displayed after winning a cracker
+local jokes = {
+    {"What do Santa's elves learn in school?", "The elf-abet."},
+    {"What kind of photos do Santa's elves take?", "Elfies!"},
+    {"How do the elves clean Santa's sleigh on the day after Christmas?", "They use Santa-tizer."},
+    {"Why did Santa get a parking ticket on Christmas?", "He left his sleigh in a snow parking zone."},
+    {"What is a Christmas tree's favourite candy?", "Orna-mints!"},
+    {"What did the sea say to Santa?", "Nothing! It just waved!"},
+    {"Why is Santa so good at karate?", "Because he has a black belt!"},
+    {"Did Rudolph go to school?", "No. He was Elf-taught!"},
+    {"Why are Comet, Cupid, and Donner, and always wet?", "Because they are rain deer."},
+    {"Where does Mistletoe go to become famous?", "\"Holly\" wood!"},
+    {"What do reindeer hang on their Christmas trees?", "Horn-aments"},
+    {"Why did the Christmas tree go to the dentist?", "It needed a root canal."},
+    {"What did the stamp say to the Christmas card?", "Stick with me and we'll go places!"},
+    {"Why does Santa go down the chimney?", "Because it soots him!"},
+    {"What did one Christmas tree say to another?", "Lighten up!"},
+    {"What do you call Santa on the beach? ", "Sandy Clause!"},
+    {"What do snowmen have for breakfast?", "Snowflakes"},
+    {"Why are Christmas trees bad at knitting?", "Because they always drop their needles"},
+    {"Why couldn't the skeleton go to the Christmas party?", "He had no body to go with"},
+    {"What do you sing a snowman's birthday party?", "Freeze a jolly good fellow"},
+    {"What is the best Christmas present?", "A broken drum - you can't beat it"}
+}
+
 local hooksAdded = false
 
 function SWEP:Initialize()
@@ -126,6 +152,46 @@ if SERVER then
         hat:SetColor(self.HatColours[math.random(#self.HatColours)])
     end
 
+    -- Gives the player a random joke displayed in the centre of the screen
+    SWEP.GiveJokeAttempts = 0
+
+    function SWEP:GiveJoke(ply)
+        -- Try and give a joke to the player
+        for _, joke in RandomPairs(jokes) do
+            if not joke.used then
+                ply:PrintMessage("Your joke:")
+                ply:PrintMessage(joke[1])
+
+                timer.Simple(5, function()
+                    if IsValid(ply) then
+                        ply:PrintMessage(joke[2])
+                    end
+                end)
+
+                joke.used = true
+                self.GiveJokeAttempts = 0
+
+                return
+            end
+        end
+
+        -- If all jokes are used, reset their flags and try again
+        for _, joke in ipairs(jokes) do
+            joke.used = false
+        end
+
+        -- Just in case this function gets stuck in an infinite loop...
+        self.GiveJokeAttempts = self.GiveJokeAttempts + 1
+
+        if self.GiveJokeAttempts < 4 then
+            self:GiveJoke(ply)
+        end
+    end
+
+    -- Gives the player a random shop item
+    function SWEP:GiveShopItem(ply)
+    end
+
     -- Returns an entity the owner is looking at, with a tolerance of a bounding box to search for a player in
     function SWEP:GetTraceEntity()
         local owner = self:GetOwner()
@@ -202,13 +268,16 @@ if SERVER then
         net.Start("TTTChristmasCrackerOpen")
         net.WritePlayer(winner)
         net.Broadcast()
-        winner:ChatPrint("You won the cracker! What's inside?")
-        self:GiveHat(winner)
+        winner:ChatPrint("You won the cracker!")
 
         if IsValid(loser) then
             loser:ChatPrint("You didn't win the cracker, try opening another one!")
         end
 
+        -- Rewards
+        self:GiveHat(winner)
+        self:GiveJoke(winner)
+        self:GiveShopItem(winner)
         self:ResetCrackerPartner()
     end
 
