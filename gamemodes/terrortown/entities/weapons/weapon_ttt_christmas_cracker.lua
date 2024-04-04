@@ -1,7 +1,7 @@
 AddCSLuaFile()
 
 if SERVER then
-    util.AddNetworkString("TTTChristmasCrackerOpen")
+    util.AddNetworkString("TTTCrackerOpen")
 end
 
 if CLIENT then
@@ -68,6 +68,7 @@ local jokes = {
     {"What is the best Christmas present?", "A broken drum - you can't beat it"}
 }
 
+local itemBlocklist = {}
 local hooksAdded = false
 
 function SWEP:Initialize()
@@ -75,18 +76,23 @@ function SWEP:Initialize()
     if hooksAdded then return end
 
     -- Slow the players down when opening the cracker
-    hook.Add("TTTSpeedMultiplier", "TTTChristmasCrackerSlowdown", function(ply, mults, sprinting)
-        if IsValid(ply:GetNWEntity("TTTChristmasCrackerPartner")) then
+    hook.Add("TTTSpeedMultiplier", "TTTCrackerSlowdown", function(ply, mults, sprinting)
+        if IsValid(ply:GetNWEntity("TTTCrackerPartner")) then
             table.insert(mults, 0.2)
         end
     end)
 
     -- Removing all cracker hooks
-    hook.Add("TTTPrepareRound", "TTTChristmasCrackerReset", function()
-        hook.Remove("TTTSpeedMultiplier", "TTTChristmasCrackerSlowdown")
-        hook.Remove("TTTPrepareRound", "TTTChristmasCrackerReset")
+    hook.Add("TTTPrepareRound", "TTTCrackerReset", function()
+        hook.Remove("TTTSpeedMultiplier", "TTTCrackerSlowdown")
+        hook.Remove("TTTPrepareRound", "TTTCrackerReset")
         hooksAdded = false
     end)
+
+    -- Populate shop item-giving blocklist
+    for classname in string.gmatch(GetConVar("randomat_crackers_item_blocklist"):GetString(), "([^,]+)") do
+        table.insert(itemBlocklist, classname:Trim())
+    end
 end
 
 function SWEP:PrimaryAttack()
@@ -152,20 +158,24 @@ if SERVER then
         hat:SetColor(self.HatColours[math.random(#self.HatColours)])
     end
 
-    -- Gives the player a random joke displayed in the centre of the screen
     SWEP.GiveJokeAttempts = 0
 
+    -- Gives the player a random joke displayed in the centre of the screen
     function SWEP:GiveJoke(ply)
         -- Try and give a joke to the player
         for _, joke in RandomPairs(jokes) do
             if not joke.used then
-                ply:PrintMessage("Your joke:")
-                ply:PrintMessage(joke[1])
+                ply:PrintMessage("Ready for your joke?")
 
+                -- Delay giving the joke, and the punchline by 5 seconds each
                 timer.Simple(5, function()
-                    if IsValid(ply) then
+                    if not IsValid(ply) then return end
+                    ply:PrintMessage(joke[1])
+
+                    timer.Simple(5, function()
+                        if not IsValid(ply) then return end
                         ply:PrintMessage(joke[2])
-                    end
+                    end)
                 end)
 
                 joke.used = true
@@ -190,6 +200,13 @@ if SERVER then
 
     -- Gives the player a random shop item
     function SWEP:GiveShopItem(ply)
+        ply.TTTCrackerShopItemTries = 0
+
+        Randomat:GiveRandomShopItem(ply, Randomat:GetShopRoles(), itemBlocklist, false, function() return ply.TTTCrackerShopItemTries end, function(value)
+            ply.TTTCrackerShopItemTries = value
+        end, function(isequip, id)
+            Randomat:CallShopHooks(isequip, id, ply)
+        end)
     end
 
     -- Returns an entity the owner is looking at, with a tolerance of a bounding box to search for a player in
@@ -217,20 +234,20 @@ if SERVER then
     function SWEP:ResetCrackerPartner()
         local own = self:GetOwner()
         if not IsValid(own) then return end
-        if timer.Exists("TTTChristmasCrackerResetCooldown" .. own:SteamID64()) then return end
+        if timer.Exists("TTTCrackerResetCooldown" .. own:SteamID64()) then return end
 
-        timer.Create("TTTChristmasCrackerResetCooldown" .. own:SteamID64(), self.OpeningResetCooldown, 1, function()
+        timer.Create("TTTCrackerResetCooldown" .. own:SteamID64(), self.OpeningResetCooldown, 1, function()
             if not IsValid(self) then return end
             self.CrackerOpenDelay = nil
             local owner = self:GetOwner()
             if not IsValid(owner) then return end
-            local partner = owner:GetNWEntity("TTTChristmasCrackerPartner")
+            local partner = owner:GetNWEntity("TTTCrackerPartner")
 
             if IsValid(partner) then
-                partner:SetNWEntity("TTTChristmasCrackerPartner", nil)
+                partner:SetNWEntity("TTTCrackerPartner", nil)
             end
 
-            owner:SetNWEntity("TTTChristmasCrackerPartner", nil)
+            owner:SetNWEntity("TTTCrackerPartner", nil)
         end)
     end
 
@@ -239,19 +256,19 @@ if SERVER then
         -- Get the cracker owner and partner
         local owner = self:GetOwner()
         if not IsValid(owner) then return end
-        local partner = owner:GetNWEntity("TTTChristmasCrackerPartner")
+        local partner = owner:GetNWEntity("TTTCrackerPartner")
         -- Set this flag to prevent the cracker from being opened a second time (Prevents the think hook from running)
         self.Opened = true
         local winner
         local loser
-        owner.TTTChristmasCrackerWins = owner.TTTChristmasCrackerWins or 0
-        partner.TTTChristmasCrackerWins = partner.TTTChristmasCrackerWins or 0
+        owner.TTTCrackerWins = owner.TTTCrackerWins or 0
+        partner.TTTCrackerWins = partner.TTTCrackerWins or 0
 
         -- Picking a player to win the cracker
         -- Automatically picking the owner if their partner isn't valid for any reason
         -- Always picking the player that has won less times
         -- Picking randomly on a tie
-        if not IsValid(partner) or partner.TTTChristmasCrackerWins > owner.TTTChristmasCrackerWins or (partner.TTTChristmasCrackerWins == owner.TTTChristmasCrackerWins and math.random() < 0.5) then
+        if not IsValid(partner) or partner.TTTCrackerWins > owner.TTTCrackerWins or (partner.TTTCrackerWins == owner.TTTCrackerWins and math.random() < 0.5) then
             self:SetNWBool("OpenedWon", true)
             winner = owner
             loser = partner
@@ -265,7 +282,7 @@ if SERVER then
             self.ViewModel = self.OpenedShortModel
         end
 
-        net.Start("TTTChristmasCrackerOpen")
+        net.Start("TTTCrackerOpen")
         net.WritePlayer(winner)
         net.Broadcast()
         winner:ChatPrint("You won the cracker!")
@@ -298,9 +315,9 @@ if SERVER then
             end
 
             -- Set flags on the cracker-opening partners, this slows their movement speed down
-            if not IsValid(owner:GetNWEntity("TTTChristmasCrackerPartner")) then
-                owner:SetNWEntity("TTTChristmasCrackerPartner", partner)
-                partner:SetNWEntity("TTTChristmasCrackerPartner", owner)
+            if not IsValid(owner:GetNWEntity("TTTCrackerPartner")) then
+                owner:SetNWEntity("TTTCrackerPartner", partner)
+                partner:SetNWEntity("TTTCrackerPartner", owner)
                 -- Make the partner face the player
                 local partnerAim = owner:GetAimVector()
                 partnerAim.x = -partnerAim.x
@@ -332,9 +349,9 @@ end
 
 if CLIENT then
     -- Doing the jester win effect on a player winning the cracker
-    net.Receive("TTTChristmasCrackerOpen", function()
+    net.Receive("TTTCrackerOpen", function()
         local winner = net.ReadPlayer()
-        winner:Celebrate("christmascrackers/cracker_open.mp3", true)
+        winner:Celebrate("crackers/cracker_open.mp3", true)
     end)
 
     -- This hacks in a viewmodel for the SWEP using its worldmodel, instead of using a proper separate v_ or c_ model (Not enough tutorials for this online...)

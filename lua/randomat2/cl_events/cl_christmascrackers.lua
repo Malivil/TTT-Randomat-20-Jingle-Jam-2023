@@ -1,2 +1,2 @@
-net.Receive("RandomatChristmasCrackersBegin", function() end)
-net.Receive("RandomatChristmasCrackersEnd", function() end)
+net.Receive("RandomatCrackersBegin", function() end)
+net.Receive("RandomatCrackersEnd", function() end)
