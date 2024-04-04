@@ -20,8 +20,7 @@ SWEP.AutoSpawnable = false
 SWEP.AllowDrop = true
 SWEP.CanBuy = nil
 -- Arbitrary weapon kind to not conflict with any other weapon
-local lastKind = 31135
-SWEP.Kind = lastKind
+SWEP.Kind = 31135
 SWEP.Primary.ClipSize = -1
 SWEP.Primary.DefaultClip = -1
 SWEP.Primary.Ammo = "none"
@@ -30,8 +29,8 @@ SWEP.OpenedLongModel = "models/ttt_randomat_jingle_jam_2023/cracker/cracker_crac
 SWEP.OpenedShortModel = "models/ttt_randomat_jingle_jam_2023/cracker/cracker_cracked_short.mdl"
 SWEP.WorldModel = "models/ttt_randomat_jingle_jam_2023/cracker/cracker.mdl"
 SWEP.ViewModel = "models/ttt_randomat_jingle_jam_2023/cracker/cracker.mdl"
--- How far away in source units you can try to get someone to 
-SWEP.Range = 100
+-- How far away in source units you can try to get someone to open a cracker
+SWEP.Range = 200
 -- How forgiving to the user to find a player they are trying to click on
 -- (Higher number = more lag compensation, but less accuracy, might find the wrong player if another player is near)
 SWEP.PartnerSearchHitBoxSize = 10
@@ -65,12 +64,17 @@ function SWEP:Initialize()
 end
 
 function SWEP:PrimaryAttack()
+    if CLIENT or self.ShownPrimaryAttackMessage or self.Opened then return end
     local owner = self:GetOwner()
     if not IsValid(owner) then return end
+    local partner = self:GetTraceEntity()
 
-    if not self.ShownPrimaryAttackMessage then
+    if not IsPlayer(partner) then
+        self:ResetCrackerPartner()
         owner:PrintMessage(HUD_PRINTCENTER, "Find a player to open this with!")
         self.ShownPrimaryAttackMessage = true
+
+        return
     end
 end
 
@@ -78,9 +82,13 @@ function SWEP:SecondaryAttack()
     self:PrimaryAttack()
 end
 
-function SWEP:Reload()
-end
-
+-- function SWEP:Reload()
+--     if SERVER then
+--         for _, ply in player.Iterator() do
+--             self:GiveHat(ply)
+--         end
+--     end
+-- end
 if SERVER then
     -- Places a paper crown hat on someone's head
     function SWEP:GiveHat(ply)
@@ -236,8 +244,8 @@ if SERVER then
             end
 
             -- Make the other player have to start holding left-click to start opening the cracker
-            -- if owner:KeyDown(IN_BACK) then
-            if owner:KeyDown(IN_BACK) and partner:KeyDown(IN_ATTACK) and partner:KeyDown(IN_BACK) then
+            -- if owner:KeyDown(IN_BACK) and partner:KeyDown(IN_ATTACK) and partner:KeyDown(IN_BACK) then
+            if owner:KeyDown(IN_BACK) then
                 if not self.CrackerOpenDelay then
                     self.CrackerOpenDelay = CurTime() + self.OpeningDelay
                     -- If they've held the left-click and move back buttons down long enough, the cracker opens!
