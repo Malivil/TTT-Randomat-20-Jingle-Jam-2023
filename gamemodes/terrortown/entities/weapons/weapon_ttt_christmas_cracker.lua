@@ -141,9 +141,11 @@ if SERVER then
 
     -- Frees players from trying to open the cracker
     function SWEP:ResetCrackerPartner()
-        if timer.Exists("TTTChristmasCrackerResetCooldown") then return end
+        local own = self:GetOwner()
+        if not IsValid(own) then return end
+        if timer.Exists("TTTChristmasCrackerResetCooldown" .. own:SteamID64()) then return end
 
-        timer.Create("TTTChristmasCrackerResetCooldown", self.OpeningResetCooldown, 1, function()
+        timer.Create("TTTChristmasCrackerResetCooldown" .. own:SteamID64(), self.OpeningResetCooldown, 1, function()
             if not IsValid(self) then return end
             self.CrackerOpenDelay = nil
             local owner = self:GetOwner()
