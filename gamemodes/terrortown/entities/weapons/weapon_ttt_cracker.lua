@@ -171,8 +171,8 @@ if SERVER then
         -- Try and give a joke to the player
         for _, joke in RandomPairs(jokes) do
             if not joke.used then
-                -- Delay giving the joke by 10 seconds
-                timer.Simple(10, function()
+                -- Delay giving the joke by 5 seconds
+                timer.Simple(5, function()
                     if not IsValid(ply) then return end
                     ply:ChatPrint(joke[1])
 
