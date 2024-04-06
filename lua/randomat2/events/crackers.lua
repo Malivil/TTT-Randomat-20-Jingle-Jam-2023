@@ -13,13 +13,21 @@ util.AddNetworkString("RandomatCrackersEnd")
 local crackerClass = "weapon_ttt_cracker"
 
 function EVENT:Begin()
-    net.Start("RandomatCrackersBegin")
-    net.Broadcast()
-
+    -- Gives everyone a christmas cracker, containing a joke, paper hat and random item
     for _, ply in player.Iterator() do
         ply:Give(crackerClass)
         ply:SelectWeapon(crackerClass)
     end
+
+    -- Apply a candy cane texture to every weapon that isn't the christmas cracker
+    for _, ent in ipairs(ents.GetAll()) do
+        if IsValid(ent) and ent:IsWeapon() and WEPS.GetClass(ent) ~= crackerClass then
+            ent:SetMaterial("ttt_randomat_jingle_jam_2023/candy_cane.png")
+        end
+    end
+
+    net.Start("RandomatCrackersBegin")
+    net.Broadcast()
 end
 
 function EVENT:End()
