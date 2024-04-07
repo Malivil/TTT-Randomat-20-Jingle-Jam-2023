@@ -1,6 +1,8 @@
 local EVENT = {}
 
-CreateConVar("randomat_crackers_item_blocklist", "", {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Comma-separated list of weapon classnames to not give when a player wins a cracker")
+CreateConVar("randomat_crackers_item_blocklist", "", {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Comma-separated list of weapon classnames to not give when a player wins a cracker (E.g. \"weapon_ttt_knife,weapon_ttt_harpoon\")")
+
+local musicConvar = CreateConVar("randomat_crackers_music", "1", {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "Play music during this randomat", 0, 1)
 
 EVENT.Title = "Christmas Crackers"
 EVENT.Description = "Open your crackers and spread some Christmas cheer!"
@@ -8,6 +10,7 @@ EVENT.id = "crackers"
 
 EVENT.Categories = {"item", "largeimpact"}
 
+EVENT.Type = EVENT_TYPE_MUSIC
 util.AddNetworkString("RandomatCrackersBegin")
 util.AddNetworkString("RandomatCrackersEnd")
 local crackerClass = "weapon_ttt_cracker"
@@ -27,7 +30,13 @@ function EVENT:Begin()
     end
 
     net.Start("RandomatCrackersBegin")
+    net.WriteBool(musicConvar:GetBool())
     net.Broadcast()
+
+    -- Disable round end sounds and 'Ending Flair' event so ending music can play
+    if musicConvar:GetBool() then
+        self:DisableRoundEndSounds()
+    end
 end
 
 function EVENT:End()
@@ -36,22 +45,25 @@ function EVENT:End()
 end
 
 function EVENT:GetConVars()
-    local textboxes = {}
+    local checkboxes = {}
 
-    for _, v in ipairs({"item_blocklist"}) do
+    for _, v in pairs({"music"}) do
         local name = "randomat_" .. self.id .. "_" .. v
 
         if ConVarExists(name) then
             local convar = GetConVar(name)
 
-            table.insert(textboxes, {
+            table.insert(checkboxes, {
                 cmd = v,
-                dsc = convar:GetHelpText()
+                dsc = convar:GetHelpText(),
+                min = convar:GetMin(),
+                max = convar:GetMax(),
+                dcm = 0
             })
         end
     end
 
-    return {}, {}, textboxes
+    return {}, checkboxes
 end
 
 Randomat:register(EVENT)
