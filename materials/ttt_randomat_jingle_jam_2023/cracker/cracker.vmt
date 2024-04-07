@@ -4,7 +4,7 @@
 
 // Base Parameters
 
-	"$basetexture" 			"ttt_randomat_jingle_jam_2023/cracker/cracker"		// (Texture) Determines which texture is used for your meshes surface. 
+	"$basetexture" 			"ttt_randomat_jingle_jam_2023/candy_cane"		// (Texture) Determines which texture is used for your meshes surface. 
 	// "$bumpmap" 			"models/props/_nrm"		// (Texture) Determines which texture is used for fake depth and shadowing. Disables per vertex lighting for static props in all games but CS:GO. If using for a static prop, I would recommend not using a bump map most of the time.
 	"$color2"				"[1 1 1]"				// (RGB Matrix) Determines tinting of your texture. Smaller numbers in slot 1 mean less red, in slot 2, less green, slot 3, less blue, and vice versa.
 

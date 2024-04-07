@@ -15,6 +15,17 @@ util.AddNetworkString("RandomatCrackersBegin")
 util.AddNetworkString("RandomatCrackersEnd")
 local crackerClass = "weapon_ttt_cracker"
 
+-- Changes the texture of weapons or thrown grenades
+local function SetCandyCaneTexture(ent, remove)
+    if IsValid(ent) and (ent:IsWeapon() or (ent.Base and ent.Base == "ttt_basegrenade_proj")) then
+        if remove then
+            ent:SetMaterial("")
+        else
+            ent:SetMaterial("ttt_randomat_jingle_jam_2023/candy_cane.png")
+        end
+    end
+end
+
 function EVENT:Begin()
     -- Gives everyone a christmas cracker, containing a joke, paper hat and random item
     for _, ply in player.Iterator() do
@@ -22,12 +33,18 @@ function EVENT:Begin()
         ply:SelectWeapon(crackerClass)
     end
 
-    -- Apply a candy cane texture to every weapon that isn't the christmas cracker
+    -- Apply a candy cane texture to every weapon
     for _, ent in ipairs(ents.GetAll()) do
-        if IsValid(ent) and ent:IsWeapon() and WEPS.GetClass(ent) ~= crackerClass then
-            ent:SetMaterial("ttt_randomat_jingle_jam_2023/candy_cane.png")
-        end
+        SetCandyCaneTexture(ent)
     end
+
+    -- This hook is called by Gmod a little too early, entities are not fully created when this hook is called
+    -- The 0 second timer is recommended by the Gmod wiki as a work-around
+    self:AddHook("OnEntityCreated", function(ent)
+        timer.Simple(0, function()
+            SetCandyCaneTexture(ent)
+        end)
+    end)
 
     net.Start("RandomatCrackersBegin")
     net.WriteBool(musicConvar:GetBool())
@@ -42,6 +59,17 @@ end
 function EVENT:End()
     net.Start("RandomatCrackersEnd")
     net.Broadcast()
+
+    -- Remove the crackers and candy cane texture from every weapon in time with the music
+    timer.Simple(5.34, function()
+        for _, ent in ipairs(ents.GetAll()) do
+            SetCandyCaneTexture(ent, true)
+
+            if IsValid(ent) and ent:GetClass() == crackerClass then
+                ent:Remove()
+            end
+        end
+    end)
 end
 
 function EVENT:GetConVars()
