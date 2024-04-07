@@ -95,6 +95,6 @@ _randomat_yeti_freeze_time_ - Default: 5 - The amount of time to freeze players 
 - 'Christmas Cracker.wav' by 170134 \
 Licensed under Creative Commons: By Attribution NonCommercial 3.0 License \
 <https://creativecommons.org/licenses/by-nc/3.0/>
-- 'We Wish you a Merry Christmas' Kevin MacLeod (incompetech.com)
+- 'Christmas Rap' Kevin MacLeod (incompetech.com)
 Licensed under Creative Commons: By Attribution 4.0 License
 http://creativecommons.org/licenses/by/4.0/
