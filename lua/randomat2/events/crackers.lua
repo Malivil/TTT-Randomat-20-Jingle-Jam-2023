@@ -34,7 +34,7 @@ function EVENT:Begin()
     end
 
     -- Apply a candy cane texture to every weapon
-    for _, ent in ipairs(ents.GetAll()) do
+    for _, ent in ents.Iterator() do
         SetCandyCaneTexture(ent)
     end
 
@@ -62,7 +62,7 @@ function EVENT:End()
 
     -- Remove the crackers and candy cane texture from every weapon in time with the music
     timer.Simple(5.34, function()
-        for _, ent in ipairs(ents.GetAll()) do
+        for _, ent in ents.Iterator() do
             SetCandyCaneTexture(ent, true)
 
             if IsValid(ent) and ent:GetClass() == crackerClass then

@@ -223,7 +223,7 @@ if SERVER then
         local lowerBoxBound = Vector(-1, -1, -1) * self.PartnerSearchHitBoxSize
         local upperBoxBound = Vector(1, 1, 1) * self.PartnerSearchHitBoxSize
 
-        local TraceResult = util.TraceHull({
+        local traceResult = util.TraceHull({
             start = startPos,
             endpos = endPos,
             filter = owner,
@@ -232,7 +232,7 @@ if SERVER then
             maxs = upperBoxBound
         })
 
-        return TraceResult.Entity
+        return traceResult.Entity
     end
 
     -- Frees players from trying to open the cracker
@@ -345,6 +345,7 @@ if SERVER then
             end
 
             -- Make it so either player can hold left-click and walk backwards to open the cracker, to avoid trolling from the cracker-using player
+            -- (The owner holding left-click has already been checked above)
             if owner:KeyDown(IN_BACK) or (partner:KeyDown(IN_ATTACK) and partner:KeyDown(IN_BACK)) then
                 if not self.CrackerOpenDelay then
                     self.CrackerOpenDelay = CurTime() + self.OpeningDelay
@@ -392,19 +393,19 @@ if CLIENT then
     end
 
     -- First-person viewmodel
-    function SWEP:GetViewModelPosition(EyePos, EyeAng)
-        EyeAng = EyeAng * 1
-        EyeAng:RotateAroundAxis(EyeAng:Right(), self.ViewModelAng.x)
-        EyeAng:RotateAroundAxis(EyeAng:Up(), self.ViewModelAng.y)
-        EyeAng:RotateAroundAxis(EyeAng:Forward(), self.ViewModelAng.z)
-        local Right = EyeAng:Right()
-        local Up = EyeAng:Up()
-        local Forward = EyeAng:Forward()
-        EyePos = EyePos + self.ViewModelPos.x * Right
-        EyePos = EyePos + self.ViewModelPos.y * Forward * self.ViewmodelDrawAnimModifier
-        EyePos = EyePos + self.ViewModelPos.z * Up
+    function SWEP:GetViewModelPosition(eyePos, eyeAng)
+        eyeAng = eyeAng * 1
+        eyeAng:RotateAroundAxis(eyeAng:Right(), self.ViewModelAng.x)
+        eyeAng:RotateAroundAxis(eyeAng:Up(), self.ViewModelAng.y)
+        eyeAng:RotateAroundAxis(eyeAng:Forward(), self.ViewModelAng.z)
+        local Right = eyeAng:Right()
+        local Up = eyeAng:Up()
+        local Forward = eyeAng:Forward()
+        eyePos = eyePos + self.ViewModelPos.x * Right
+        eyePos = eyePos + self.ViewModelPos.y * Forward * self.ViewmodelDrawAnimModifier
+        eyePos = eyePos + self.ViewModelPos.z * Up
 
-        return EyePos, EyeAng
+        return eyePos, eyeAng
     end
 
     function SWEP:PreDrawViewModel(vm, weapon, ply)
