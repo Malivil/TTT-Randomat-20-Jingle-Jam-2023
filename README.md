@@ -15,6 +15,20 @@ _ttt_randomat_adminabuse_min_players_ - Default: 0 - The minimum number of playe
 _ttt_randomat_adminabuse_weight_ - Default: -1 - The weight this event should use during the randomized event selection process.\
 _randomat_adminabuse_rate_ - Default: 0.3 - How often (in seconds) the Admin gains power.
 
+## Christmas Crackers
+_Suggested By_: The Stig\
+Gives everyone a christmas cracker that can be opened with another player, containing a joke, wearable paper hat, and a random item!\
+Puts a candy cane texture on every weapon, adds a screen effect, and plays christmas-themed music! (Which can be muted per player by pressing 'M')
+\
+\
+**ConVars**
+\
+_ttt_randomat_crackers_ - Default: 1 - Whether this event is enabled.\
+_ttt_randomat_crackers_min_players_ - Default: 0 - The minimum number of players required for this event to start.\
+_ttt_randomat_crackers_weight_ - Default: -1 - The weight this event should use during the randomized event selection process.\
+_randomat_crackers_item_blocklist_ - Default: "" - Comma-separated list of weapon classnames to not give when a player wins a cracker. (E.g. "weapon_ttt_knife,weapon_ttt_harpoon")\
+_randomat_crackers_music_ - Default: 1 - Play music during this randomat
+
 ## Hard Boiled Det-EGG-tive
 _Suggested By_: Spaaz\
 Turns the detective into an egg who moves slower, and has more health and a revolver with infinite ammo.
@@ -78,3 +92,9 @@ _randomat_yeti_freeze_time_ - Default: 5 - The amount of time to freeze players 
   - Sounds are property of their respective creators/owners
 - [Goofy Ahh Sounds](https://steamcommunity.com/sharedfiles/filedetails/?id=2801860110) for the sounds used in the "Slapstick" event
   - Sounds are property of their respective creators/owners
+- 'Christmas Cracker.wav' by 170134 \
+Licensed under Creative Commons: By Attribution NonCommercial 3.0 License \
+<https://creativecommons.org/licenses/by-nc/3.0/>
+- 'Christmas Rap' Kevin MacLeod (incompetech.com)
+Licensed under Creative Commons: By Attribution 4.0 License
+http://creativecommons.org/licenses/by/4.0/

@@ -348,6 +348,7 @@ globals = {
     "IN_WEAPON2",
     "IN_ZOOM",
     "KEY_F5",
+    "KEY_M",
     "KEY_PAD_ENTER",
     "KILL_BURN",
     "KILL_FALL",
