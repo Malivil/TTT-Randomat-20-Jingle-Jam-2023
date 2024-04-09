@@ -21,7 +21,7 @@ local function SetCandyCaneTexture(ent, remove)
         if remove then
             ent:SetMaterial("")
         else
-            ent:SetMaterial("ttt_randomat_jingle_jam_2023/candy_cane.png")
+            ent:SetMaterial("ttt_randomat_jingle_jam_2023/candy_cane")
         end
     end
 end
