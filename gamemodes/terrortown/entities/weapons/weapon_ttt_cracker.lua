@@ -91,9 +91,15 @@ function SWEP:Initialize()
         hooksAdded = false
     end)
 
-    -- Populate shop item-giving blocklist
-    for classname in string.gmatch(GetConVar("randomat_crackers_item_blocklist"):GetString(), "([^,]+)") do
-        table.insert(itemBlocklist, classname:Trim())
+    hooksAdded = true
+
+    if SERVER then
+        -- Populate shop item-giving blocklist
+        table.Empty(itemBlocklist)
+
+        for classname in string.gmatch(GetConVar("randomat_crackers_item_blocklist"):GetString(), "([^,]+)") do
+            table.insert(itemBlocklist, classname:Trim())
+        end
     end
 end
 
@@ -394,7 +400,6 @@ if CLIENT then
 
     -- First-person viewmodel
     function SWEP:GetViewModelPosition(eyePos, eyeAng)
-        eyeAng = eyeAng * 1
         eyeAng:RotateAroundAxis(eyeAng:Right(), self.ViewModelAng.x)
         eyeAng:RotateAroundAxis(eyeAng:Up(), self.ViewModelAng.y)
         eyeAng:RotateAroundAxis(eyeAng:Forward(), self.ViewModelAng.z)
