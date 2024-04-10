@@ -36,6 +36,8 @@ function EVENT:End()
 end
 
 function EVENT:Condition()
+    if not ROLE_ADMIN or ROLE_ADMIN == -1 then return end
+
     local has_detective = false
     for _, p in ipairs(self:GetAlivePlayers()) do
         if Randomat:IsGoodDetectiveLike(p) then
