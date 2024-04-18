@@ -1,3 +1,7 @@
+local player = player
+
+local PlayerIterator = player.Iterator
+
 local EVENT = {}
 
 local endsound = CreateConVar("randomat_slapstick_endsound", 1, {FCVAR_NOTIFY, FCVAR_ARCHIVE}, "Whether to play the sound at the end of the event")
@@ -125,7 +129,7 @@ function EVENT:Begin()
     net.Start("TriggerSlapstick")
     net.Broadcast()
 
-    for _, ply in ipairs(player.GetAll()) do
+    for _, ply in PlayerIterator() do
         for _, wep in ipairs(ply:GetWeapons()) do
             local chosen_sound = StringFormat(gunshot_sound_path, math.random(gunshot_sound_count))
             Randomat:OverrideWeaponSound(wep, chosen_sound)
@@ -201,7 +205,7 @@ function EVENT:End()
 
     timer.Remove("SlapstickDelay")
 
-    for _, ply in ipairs(player.GetAll()) do
+    for _, ply in PlayerIterator() do
         for _, wep in ipairs(ply:GetWeapons()) do
             Randomat:RestoreWeaponSound(wep)
         end

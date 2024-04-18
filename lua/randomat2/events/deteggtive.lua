@@ -81,6 +81,7 @@ function EVENT:Begin()
     if IsValid(revolver) then
         revolver.ForceReload = false
         revolver.Primary.Delay = 1
+        revolver.Primary.Damage = 45
     end
 end
 

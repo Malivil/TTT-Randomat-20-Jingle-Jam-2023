@@ -1,0 +1,21 @@
+"UnlitGeneric" // (Shader) UnlitGeneric is, as titled, Unlit. In game it will appear fullbright and is very cheap to render. 
+{
+// Any parameters beginning with "//" will be ignored by the material. This is useful for deprecating something you may want to use later on, or revert back to, as well as for making comments like this one for organization and learning.
+
+// Base Parameters
+
+	"$basetexture" 			"ttt_randomat_jingle_jam_2023/white_vignette"		// (Texture) Determines which texture is used for your meshes surface. 
+
+	"$translucent"			"1"				// (Boolean) Determines if your mesh is transparent. By default uses your base textures alpha channel for per texel transparency. Cannot be used with $selfillum without workarounds, see Valve Developer Wiki.
+
+
+	"$model" 				"0"				// (Boolean) This must be enabled if used on a model to prevent errors.
+
+// Detail Textures, adds high resolution detail over your mesh to improve upclose detail.
+
+	"$detail"  				"detail\noise_detail_01"		// (Texture) Determines which texture is used for detailing.
+	"$detailscale" 			"7.74"				// (Float) Controls scale of the detail texture. Higher number means larger tiles.
+	"$detailblendfactor"  		".8"				// (Float) Controls the intensity of the detail overlay. 
+	"$detailblendmode" 		"0"				// (Integer) Determines the blend mode the overlay texture uses. Most cases use 0. Useful values are from 0 - 8.
+
+}

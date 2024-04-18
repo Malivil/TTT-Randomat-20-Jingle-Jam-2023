@@ -348,6 +348,7 @@ globals = {
     "IN_WEAPON2",
     "IN_ZOOM",
     "KEY_F5",
+    "KEY_M",
     "KEY_PAD_ENTER",
     "KILL_BURN",
     "KILL_FALL",
@@ -1129,7 +1130,10 @@ globals = {
 	-- JJ2023 Randomat
 	"ROLE_YETI",
     "WIN_YETI",
-    "YETI"
+    "YETI",
+
+    -- JJ2023 Roles
+    "ROLE_ADMIN"
 }
 std = {
     globals = {

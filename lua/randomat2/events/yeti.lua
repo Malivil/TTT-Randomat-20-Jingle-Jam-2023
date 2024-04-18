@@ -112,14 +112,14 @@ function EVENT:Begin()
         if not ply:IsRole(ROLE_YETI) then return end
 
         net.Start("TTT_PlayerFootstep")
-        net.WriteEntity(ply)
-        net.WriteVector(pos)
-        net.WriteAngle(ply:GetAimVector():Angle())
-        net.WriteBit(foot)
-        net.WriteTable(COLOR_WHITE)
-        -- Footstep display time
-        net.WriteUInt(10, 8)
-        net.WriteFloat(yeti_scale_val)
+            net.WritePlayer(ply)
+            net.WriteVector(pos)
+            net.WriteAngle(ply:GetAimVector():Angle())
+            net.WriteBit(foot)
+            net.WriteTable(COLOR_WHITE)
+            -- Footstep display time
+            net.WriteUInt(10, 8)
+            net.WriteFloat(yeti_scale_val)
         net.Broadcast()
     end)
 end
