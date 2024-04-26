@@ -125,7 +125,7 @@ function PlayerCard:SetIsBetting(isBetting)
 end
 
 function PlayerCard:Paint()
-    if !self then return end
+    if not self then return end
     surface.SetFont(self.Font)
 
     surface.SetDrawColor(0, 0, 0)
@@ -134,13 +134,13 @@ function PlayerCard:Paint()
     if not self.Player then
         surface.SetDrawColor(0, 0, 0, 120)
         surface.DrawRect(1, 1, self:GetWide() - 2, self:GetTall() - 2)
-        
+
         surface.SetTextColor(255, 255, 255)
         surface.SetTextPos(self:GetWide() * 0.5 - (self.NameWidth * 0.5), self:GetTall() * 0.5 - (self.NameHeight * 0.5))
         surface.DrawText(self.NoPlayerName)
 
         return
-    end    
+    end
 
     surface.SetFont("Trebuchet18")
     surface.SetTextColor(255, 255, 255)
@@ -214,7 +214,7 @@ end
 function OtherPlayers:SetBlinds(littleBlind, bigBlind)
     local littleBlindPanel = self.PlayerPanels[littleBlind]
     local bigBlindPanel = self.PlayerPanels[bigBlind]
-    
+
     if littleBlindPanel then
         littleBlindPanel:SetBlindStatus("LB")
     end
@@ -318,7 +318,7 @@ function Card:Paint()
 
     surface.SetDrawColor(0, 0, 0)
     surface.DrawOutlinedRect(0, 0, self:GetWide(), self:GetTall(), 2)
-    
+
     if self.Disabled then
         -- Card has been disabled, gray overlay
         surface.SetDrawColor(170, 170, 170, 150)
@@ -522,7 +522,7 @@ function Controls:Setup()
     self.Raise:SetText(BetStatusToString(BettingStatus.RAISE))
     self.Raise:SetDisabled(true)
     self.Raise.CustomDoClick = function()
-        local str, val = self.RaiseOpt:GetSelected()
+        local _, val = self.RaiseOpt:GetSelected()
 
         if val then
             net.Start("MakeBet")
@@ -541,7 +541,6 @@ function Controls:Setup()
     self.RaiseOpt:AddSpacer()
     self:ResetRaiseOptions(self.CurrentRaise)
     self.RaiseOpt.OnSelect = function(raiseOptSelf, index, value, data)
-        
     end
 end
 
@@ -616,18 +615,11 @@ end
 vgui.Register("Poker_Controls", Controls, "DPanel")
 
 local ControlButton = table.Copy(LoganButton)
-ControlButton.Text = ""
-ControlButton.TextWide = 0
-ControlButton.TextTall = 0
-
-function ControlButton:SetText(text)
-    self.Text = text
-    surface.SetFont(self.Font)
-
-    self.TextWide, self.TextTall = surface.GetTextSize(self.Text)
-end
 
 function ControlButton:Paint()
+    local text = self:GetText()
+    surface.SetFont(self.Font)
+    local textWide, textTall = surface.GetTextSize(text)
     if not self.Disabled and self.IsHover then -- Technically not necessary, but if the cursor is already hovering when it gets disabled, it still highlights until the cursor leaves
         surface.SetDrawColor(180, 255, 180)
     else
@@ -640,13 +632,13 @@ function ControlButton:Paint()
     surface.DrawOutlinedRect(0, 0, self:GetWide(), self:GetTall(), 1)
 
     surface.SetTextColor(0, 0, 0)
-    surface.SetFont(self.Font)
-    surface.SetTextPos(self:GetWide() * 0.5 - (self.TextWide * 0.5), self:GetTall() * 0.5 - (self.TextTall * 0.5))
-    surface.DrawText(self.Text)
+    surface.SetTextPos(self:GetWide() * 0.5 - (textWide * 0.5), self:GetTall() * 0.5 - (textTall * 0.5))
+    surface.DrawText(text)
     if self.Disabled then
         surface.SetDrawColor(0, 0, 0, 100)
         surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
     end
+    return true
 end
 
 vgui.Register("Control_Button", ControlButton, "DButton")
@@ -658,8 +650,9 @@ Main.TimeRemaining = 0
 Main.DisplayTemporaryMessage = false
 Main.Folded = false
 
-function Main:GetBackgroundColor(newColor)
-    self.BackgroundColor = newColor
+function Main:Init()
+    self:ShowCloseButton(false)
+    self:SetTitle("")
 end
 
 function Main:TemporaryMessage(message)
@@ -678,25 +671,9 @@ function Main:SetSelfFolded()
     self.Folded = true
 end
 
-function Main:SetTitle(title)
-    return ""
-end
-
-function Main:SetVisible()
-    return true
-end
-
-function Main:SetDraggable()
-    return false
-end
-
-function Main:ShowCloseButton(shouldShow)
-    return false
-end
-
 function Main:SetTimer(time)
     local width = self:GetWide()
-    local height = self:GetTall()
+    --local height = self:GetTall()
 
     self.PolyHeader = {
         {x = width * 0.5 + 100, y = 1},

@@ -413,7 +413,7 @@ function EVENT:RegisterPlayerDiscard(ply, discardsTable)
         timer.Remove("AcceptDiscards")
         self.AcceptingDiscards = false
         self.HaveDiscarded = true
-        
+
         self:DealDeck()
 
         timer.Simple(5, function()
@@ -520,7 +520,6 @@ local function GetHandRank(ply)
 
     -- Get highest card rank
     local highestRank = Cards.NONE
-    
     if handCopyAsc[1].rank == Cards.ACE then
         highestRank = Cards.ACE
     else
@@ -551,8 +550,8 @@ local function GetHandRank(ply)
     end
 
     -- Four of a kind
-    for rank, suit in pairs(suitsByRank) do
-        if #suit == 4 then
+    for rank, suits in pairs(suitsByRank) do
+        if #suits == 4 then
             return Hands.FOUR_KIND, rank, 0, 0, "Four of a kind"
         end
     end
@@ -655,7 +654,7 @@ function EVENT:ApplyRewards(winner)
             continue
         end
 
-        local bet = self.PlayerBets[ply]
+        local bet = self.PlayerBets[ply] or 0
         local betPercent = bet * 0.25
         local health = ply:Health()
         local healthToLose = math.Round(health * betPercent)
@@ -702,7 +701,7 @@ end
 
 local function AllPlayersReady(playerTable)
     for _, ply in ipairs(playerTable) do
-        if not ply:IsBot() && (ply.Ready == nil || not ply.Ready) then
+        if not ply:IsBot() and (ply.Ready == nil or not ply.Ready) then
             return false
         end
     end

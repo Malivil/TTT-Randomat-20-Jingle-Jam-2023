@@ -13,8 +13,6 @@ function EVENT:SetupPanel()
     self.PokerMain = vgui.Create("Poker_Frame", nil, "Poker Randomat Frame")
     self.PokerMain:SetSize(375, 500)
     self.PokerMain:SetPos(ScrW() - self.PokerMain:GetWide(), 200)
-    self.PokerMain:ShowCloseButton(false)
-    self.PokerMain:SetTitle("")
 
     self.PokerPlayers = vgui.Create("Poker_AllPlayerPanels", self.PokerMain)
     self.PokerPlayers:SetPos(0, 0)
@@ -182,7 +180,7 @@ net.Receive("NotifyBlinds", function()
 
     local smallBlind = net.ReadEntity()
     local bigBlind = net.ReadEntity()
-    
+
     EVENT:SetupControls()
     EVENT:AlertBlinds(bigBlind, smallBlind)
 end)
@@ -223,7 +221,6 @@ net.Receive("PlayerChecked", function()
     if not EVENT.IsPlaying then return end
 
     local checkingPlayer = net.ReadEntity()
-    local call = net.ReadUInt(3)
 
     EVENT:RegisterBet(checkingPlayer, BettingStatus.CHECK)
 end)
