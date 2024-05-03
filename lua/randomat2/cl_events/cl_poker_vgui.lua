@@ -270,7 +270,8 @@ vgui.Register("Poker_AllPlayerPanels", OtherPlayers, "DPanel")
 local Card = table.Copy(LoganButton)
 Card.CanDraw = false
 Card.SelectedForDiscard = false
-Card.CanSelectForDiscard = false
+Card.AvailableForDiscard = false
+Card.IsBeingDiscarded = false
 Card.Rank = 0
 Card.Suit = 0
 Card.Graphic = nil
@@ -291,18 +292,21 @@ end
 function Card:UpdateCanDraw()
     if self.Rank and self.Rank > Cards.NONE and self.Suit and self.Suit > Suits.NONE then
         self.CanDraw = true
-        print("UpdateCanDraw called", self.Rank, self.Suit)
 
         self.Graphic = Material(self.GraphicsDir[self.Suit] .. CardRankToName(self.Rank) .. ".png", "noclamp")
     end
 end
 
 function Card:SetCanSelectForDiscard(canDiscard)
-    self.CanSelectForDiscard = canDiscard
+    self.AvailableForDiscard = canDiscard
+end
+
+function Card:SetBeingDiscarded(isDiscarded)
+    self.IsBeingDiscarded = isDiscarded
 end
 
 function Card:CustomDoClick()
-    if self.CanSelectForDiscard and not self.Disabled then
+    if self.AvailableForDiscard and not self.Disabled then
         self.SelectedForDiscard = not self.SelectedForDiscard
     end
 end
@@ -310,7 +314,6 @@ end
 function Card:Paint()
     if not self.CanDraw then return end
 
-    --set material, draw card png
     surface.SetMaterial(self.Graphic)
     surface.SetDrawColor(255, 255, 255)
     surface.DrawTexturedRect(0, 0, self:GetWide(), self:GetTall())
@@ -320,17 +323,17 @@ function Card:Paint()
     surface.DrawOutlinedRect(0, 0, self:GetWide(), self:GetTall(), 2)
 
     if self.Disabled then
-        -- Card has been disabled, gray overlay
         surface.SetDrawColor(170, 170, 170, 150)
         surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
+    elseif self.AvailableForDiscard and self:IsHovered() then
+        surface.SetDrawColor(180, 255, 180, 255)
+        surface.DrawOutlinedRect(0, 0, self:GetWide(), self:GetTall(), 4)
+    elseif self.IsBeingDiscarded then
+        surface.SetDrawColor(130, 130, 130, 200)
+        surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
     elseif self.SelectedForDiscard then
-        -- Card has been selected for discard
-        surface.SetDrawColor(255, 215, 0, 140)
-        surface.DrawOutlinedRect(4, 4, self:GetWide() - 8, self:GetTall() - 8, 8)
-    elseif not self.CanSelectForDiscard then
-        -- (All) cards can be selected for discard
-        surface.SetDrawColor(100, 100, 100, 140)
-        surface.DrawOutlinedRect(4, 4, self:GetWide() - 8, self:GetTall() - 8, 8)
+        surface.SetDrawColor(255, 215, 0, 255)
+        surface.DrawOutlinedRect(0, 0, self:GetWide(), self:GetTall(), 4)
     end
 end
 
@@ -366,10 +369,9 @@ function Hand:SetHand(newHand)
         newCard:SetRank(card.Rank)
         newCard:SetSuit(card.Suit)
         newCard:SetCanSelectForDiscard(false)
+        newCard:SetBeingDiscarded(false)
 
         table.insert(self.Cards, newCard)
-
-        -- do some animation?
     end
 end
 
@@ -380,18 +382,39 @@ function Hand:SetCanDiscard(canDiscard)
         cardPanel:SetCanSelectForDiscard(canDisard)
     end
 
+    local function ClosePanels()
+        self.DiscardButton:Remove()
+        self.DiscardButton = nil
+
+        self.DiscardButtonBackground:Remove()
+        self.DiscardButtonBackground = nil
+    end
+
     if canDiscard then
+        self.DiscardButtonBackground = vgui.Create("DPanel", self)
+        self.DiscardButtonBackground:SetPos(0, self:GetTall() * 0.7 - 4)
+        self.DiscardButtonBackground:SetSize(self:GetWide(), 42)
+        self.DiscardButtonBackground.Paint = function()
+            surface.SetDrawColor(0, 0, 0)
+            surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
+        end
+
         self.DiscardButton = vgui.Create("Control_Button", self)
-        self.DiscardButton:SetPos(10, 10)
         self.DiscardButton:SetSize(self:GetWide() * 0.5 - 65, 34)
+        self.DiscardButton:SetPos(self:GetWide() * 0.5 - (self.DiscardButton:GetWide() * 0.5), self:GetTall() * 0.7)
         self.DiscardButton:SetText("DISCARD")
         self.DiscardButton.CustomDoClick = function()
             self:Discard()
+            ClosePanels()
         end
+    else
+        ClosePanels()
     end
 end
 
 function Hand:Discard()
+    if not self.CanDiscard then return end
+
     net.Start("MakeDiscard")
         net.WriteUInt(self.NumSelectCards, 2)
         for _, cardPanel in ipairs(self.CardsToDiscard) do
@@ -400,18 +423,20 @@ function Hand:Discard()
         end
     net.SendToServer()
 
-    -- self:SetCanDiscard(false)
-    for _, cardPanel in ipairs(self.Cards) do
-        -- cardPanel:SetCanSelectForDiscard(canDisard)
-        if not table.HasValue(self.CardsToDiscard, cardPanel) then
-            cardPanel:SetDisabled(true)
-        else
+    self.CanDiscard = false
 
+    for _, cardPanel in ipairs(self.Cards) do
+        cardPanel:SetCanSelectForDiscard(false)
+
+        if table.HasValue(self.CardsToDiscard, cardPanel) then
+            cardPanel:SetBeingDiscarded(true)
         end
     end
 end
 
 function Hand:Think()
+    if not self.CanDiscard then return end
+
     local selectedCards = {}
     local unselectedCards = {}
 
@@ -428,6 +453,7 @@ function Hand:Think()
 
     for _, cardPanel in ipairs(unselectedCards) do
         cardPanel:SetCanSelectForDiscard(self.NumSelectCards < 3)
+        cardPanel:SetDisabled(self.NumSelectCards == 3)
     end
 
     if self.DiscardButton then
@@ -609,7 +635,7 @@ function Controls:Paint()
     surface.SetTextPos(self:GetWide() - 74, 4)
     surface.DrawText("To Match:")
     surface.SetTextPos(self:GetWide() - 72, 18)
-    surface.DrawText(BetToString(self.CurrentBet))
+    surface.DrawText(BetToString(self.CurrentRaise))
 end
 
 vgui.Register("Poker_Controls", Controls, "DPanel")
@@ -720,21 +746,27 @@ function Main:Paint()
 end
 
 function Main:PaintOver()
+    draw.NoTexture()
+
     if self.Folded then
         surface.SetDrawColor(0, 0, 0, 240)
         surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
 
         draw.DrawText("Folded!", self.Font, self:GetWide() * 0.5, self:GetTall() * 0.5, Color(255, 255, 255), TEXT_ALIGN_CENTER)
-    elseif self.ShowTimer then
-        surface.SetDrawColor(0, 0, 0)
-        surface.DrawPoly(self.PolyHeader)
+    else
+        if self.ShowTimer then
+            surface.SetDrawColor(0, 0, 0)
+            surface.DrawPoly(self.PolyHeader)
 
-        draw.SimpleText("Time Remaining: " .. self.TimeRemaining, self.Font, self:GetWide() * 0.5, 1, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
-    elseif self.DisplayTemporaryMessage then
-        surface.SetDrawColor(0, 0, 0, 240)
-        surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
+            draw.SimpleText("Time Remaining: " .. self.TimeRemaining, self.Font, self:GetWide() * 0.5, 1, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
+        end
+        
+        if self.DisplayTemporaryMessage then
+            surface.SetDrawColor(0, 0, 0, 240)
+            surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
 
-        draw.DrawText(self.DisplayMessage, self.Font, self:GetWide() * 0.5, self:GetTall() * 0.5, Color(255, 255, 255), TEXT_ALIGN_CENTER)
+            draw.DrawText(self.DisplayMessage, self.Font, self:GetWide() * 0.5, self:GetTall() * 0.5 - 30, Color(255, 255, 255), TEXT_ALIGN_CENTER)
+        end
     end
 end
 

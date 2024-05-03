@@ -83,7 +83,7 @@ end
 
 -- Called once all the players' clients have responded to the initial net message starting the randomat
 function EVENT:StartGame()
-    print("EVENT:StartGame called")
+    print("EVENT:StartGame called, registering initial bets below")
     if not self.Started then self:End() return end
 
     local smallBlind = self.Players[1]
@@ -128,23 +128,30 @@ end
 function EVENT:DealDeck()
     print("EVENT:DealDeck called")
     if not self.Started then self:End() return end
-
+    print("\tFor each player in self.Players")
     for _, ply in ipairs(self.Players) do
-        if self.Players.Status == BettingStatus.FOLD then
+        print("\tPlayer:", ply)
+        if ply.Status == BettingStatus.FOLD then
             continue
         end
 
         local deckLength = #self.Deck
         ply.Cards = ply.Cards or {}
         local cardCount = #ply.Cards
-
+        print("\tRemaining deck length: " .. deckLength, "\n\tPlayer's old cards:")
+        PrintTable(ply.Cards)
+        print("\tCards being sent to client:")
         net.Start("DealCards")
-            net.WriteUInt(5 - cardCount, 3)
-            for i = cardCount, 5 do
-                local card = table.remove(self.Deck, deckLength - i)
-
-                ply.Cards[i + 1] = card
-
+            net.WriteUInt(5, 3)
+            for i = 1, 5 do
+                local card
+                if i > cardCount then
+                    card = table.remove(self.Deck)
+                    ply.Cards[i] = card
+                else
+                    card = ply.Cards[i]
+                end
+                print("\t\tRank: " .. card.rank .. ", Suit: " .. card.suit)
                 net.WriteUInt(card.rank, 5)
                 net.WriteUInt(card.suit, 3)
             end
@@ -252,7 +259,7 @@ end
 local function PlayerChecks(ply)
     print("check")
     ply.Status = BettingStatus.CHECK
-    EVENT.PlayerBets[ply] = highestBet
+    EVENT.PlayerBets[ply] = GetHighestBet()
 
     net.Start("PlayerChecked")
         net.WriteEntity(ply)
@@ -262,7 +269,7 @@ end
 local function PlayerCalls(ply)
     print("call")
     ply.Status = BettingStatus.CALL
-    EVENT.PlayerBets[ply] = highestBet
+    EVENT.PlayerBets[ply] = GetHighestBet()
 
     net.Start("PlayerCalled")
         net.WriteEntity(ply)
@@ -284,7 +291,9 @@ end
 
 -- Called to register a player's bet (or lack thereof)
 function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
-    print("EVENT:RegisterPlayerBet called", ply, bet, betAmount, forceBet, self.ExpectantBetter)
+    print("EVENT:RegisterPlayerBet called", ply, forceBet, self.ExpectantBetter)
+    print("\tBet Type: " .. BetStatusToString(bet), bet)
+    print("\tBet Amount: " .. BetToString(betAmount), betAmount)
     if not self.Started then self:End() return end
 
     -- If we receive a bet when we're not expecting (and it isn't a fold), ignore it
@@ -304,7 +313,7 @@ function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
         elseif bet == BettingStatus.CHECK then
             if highestBet > betAmount then
                 PlayerFolds(ply)
-                PrintTable(self.PlayerBets)
+                -- PrintTable(self.PlayerBets)
             else
                 PlayerChecks(ply)
             end
@@ -321,16 +330,23 @@ function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
         end
 
         if not forceBet then
+            print("\tChecking if all players have matching bets or are folded...")
             if AllPlayersMatchingBets() then
+                print("\t\tSuccess! All players have matching bets")
                 net.Start("PlayersFinishedBetting")
                 net.Broadcast()
 
                 self:EndBetting()
             else
-                self:BeginBetting(GetNextValidPlayer(ply))
+                local nextPly = GetNextValidPlayer(ply)
+
+                print("\t\tMore players left betting! Next player:", nextPly)
+                
+                self:BeginBetting(nextPly)
             end
         end
     elseif bet < BettingStatus.CHECK then
+        print("\tOut of sync player bet registered! Marking player as folded:", ply)
         -- Out of sync player fold, used primarily for player disconnecting/death
         ply.Status = BettingStatus.FOLD
 
@@ -358,7 +374,16 @@ end
 function EVENT:EndBetting()
     print("EVENT:EndBetting called")
     timer.Simple(5, function()
-        if self.HaveDiscarded or not EnoughPlayersRemaining() then
+        local epr = EnoughPlayersRemaining()
+
+        for _, ply in ipairs(self.Players) do
+            if ply.Status ~= BettingStatus.FOLD then
+                ply.Status = BettingStatus.NONE
+            end
+        end
+
+        print("\tHave we already discarded, or are there enough players remaining?", self.HaveDiscarded, epr)
+        if self.HaveDiscarded or not epr then
             self:CalculateWinner()
         else
             self:BeginDiscarding()
@@ -376,7 +401,9 @@ function EVENT:BeginDiscarding()
     self.AcceptingDiscards = true
 
     timer.Create("AcceptDiscards", 30, 1, function()
+        print("Discard window closed after 30 seconds, calling DealDeck in 5 seconds...")
         self.AcceptingDiscards = false
+        self.HaveDiscarded = true
         self:DealDeck()
 
         timer.Simple(5, function()
@@ -397,19 +424,40 @@ end
 
 function EVENT:RegisterPlayerDiscard(ply, discardsTable)
     print("EVENT:RegisterPlayerDiscard called", ply, discardsTable)
+    -- PrintTable(discardsTable)
     if not self.Started then self:End() return end
 
     if not self.AcceptingDiscards then return end
 
-    for _, tbl in ipairs(discardsTable) do
-        if not table.RemoveByValue(ply.Cards, tbl) then
-            -- Error state, we should never receive a card that the player doesn't have in their hand
+    print("\tBefore removing cards:")
+    PrintTable(ply.Cards)  
+
+    for _, cardToRemove in ipairs(discardsTable) do
+        print("\tCard to be removed in discardsTable:", cardToRemove.rank, cardToRemove.suit)
+        local toBeRemoved
+        print("\tLooping through cards in hand (ply.Cards):")
+        for index, cardInHand in ipairs(ply.Cards) do
+            print("\t\t" .. index, cardInHand.rank, cardInHand.suit)
+            print("\t\tComparing card in hand to card to be removed:", cardToRemove.rank, cardInHand.rank, cardToRemove.suit, cardInHand.suit)
+            if cardToRemove.rank == cardInHand.rank and cardToRemove.suit == cardInHand.suit then
+                print("\tCard to remove: ", cardToRemove.rank, cardToRemove.suit)
+                print("\tIndex: " .. index)
+                toBeRemoved = index
+                -- break
+            end
+        end
+
+        if toBeRemoved then
+            table.remove(ply.Cards, toBeRemoved)
         end
     end
+    print("\tRemaining cards:")
+    PrintTable(ply.Cards)    
 
     self.Players[table.KeyFromValue(self.Players, ply)].HasDiscarded = true
-
+    print("\tChecking if all remaining players have discarded...")
     if AllPlayersDiscarded() then
+        print("\t\tAll players discarded! Ending accept-discards window early")
         timer.Remove("AcceptDiscards")
         self.AcceptingDiscards = false
         self.HaveDiscarded = true
@@ -419,6 +467,8 @@ function EVENT:RegisterPlayerDiscard(ply, discardsTable)
         timer.Simple(5, function()
             self:BeginBetting()
         end)
+    else
+        print("\t\tPlayers still remaining to discard!")
     end
 end
 
@@ -537,48 +587,48 @@ local function GetHandRank(ply)
 
     -- Any pair+ featuring a nine of diamonds
     if suitsByRank[Cards.NINE] and #suitsByRank[Cards.NINE] > 1 and table.HasValue(suitsByRank[card.rank], Suits.DIAMONDS) then
-        return Hands.NINE_OF_DIAMONDS, 0, 0, 0, "Two+ of a kind with a 9 of diamonds"
+        return Hands.NINE_OF_DIAMONDS, 0, 0, {}, "Two+ of a kind with a 9 of diamonds"
     end
 
     -- Royal flush/straight flush check
     if isFlush and isStraight then
         if handCopyAsc[1].rank == Cards.ACE then
-            return Hands.ROYAL_FLUSH, 0, 0, 0, "Royal flush"
+            return Hands.ROYAL_FLUSH, 0, 0, {}, "Royal flush"
         else
-            return Hands.STRAIGHT_FLUSH, highestRank, 0, 0, "Straight flush"
+            return Hands.STRAIGHT_FLUSH, highestRank, 0, {}, "Straight flush"
         end
     end
 
     -- Four of a kind
     for rank, suits in pairs(suitsByRank) do
         if #suits == 4 then
-            return Hands.FOUR_KIND, rank, 0, 0, "Four of a kind"
+            return Hands.FOUR_KIND, rank, 0, {}, "Four of a kind"
         end
     end
 
     -- Full house
     if hasPair and hasThree then
-        return Hands.FULL_HOUSE, hasThreeRank, 0, 0, "Full house"
+        return Hands.FULL_HOUSE, hasThreeRank, 0, {}, "Full house"
     end
 
     -- Flush
     if isFlush then
-        return Hands.FLUSH, highestRank, 0, 0, "Flush"
+        return Hands.FLUSH, highestRank, 0, {}, "Flush"
     end
 
     -- Straight
     if isStraight then
-        return Hands.STRAIGHT, highestRank, 0, 0, "Straight"
+        return Hands.STRAIGHT, highestRank, 0, {}, "Straight"
     end
 
     -- Three of a kind
     if hasThree then
-        return Hands.THREE_KIND, hasThreeRank, 0, 0, "Three of a kind"
+        return Hands.THREE_KIND, hasThreeRank, 0, {}, "Three of a kind"
     end
 
     -- Two pair
     if hasTwoPair then
-        return Hands.TWO_PAIR, hasPairsRank, 0, 0, "Two pair"
+        return Hands.TWO_PAIR, hasPairsRank, 0, {}, "Two pair"
     end
 
     -- Pair
@@ -587,7 +637,7 @@ local function GetHandRank(ply)
     end
 
     -- High Card
-    return Hands.HIGH_CARD, highestRank, rankTable, 0, "High card"
+    return Hands.HIGH_CARD, highestRank, 0, rankTable, "High card"
 end
 
 function EVENT:GetWinningPlayer()
@@ -598,10 +648,11 @@ function EVENT:GetWinningPlayer()
     local winningPlayer = nil
     local winningHighestCardRank = Cards.NONE
     local winningAltHighestCardRank = Cards.NONE
-    local winningRanksTbl = nil
+    local winningRanksTbl = {}
     local winningStr = ""
 
     local function AssignNewWinner(ply, newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, newStr)
+        print("\tAssignNewWinner called with args:", ply, newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, newStr)
         winningHandRank = newHandRank
         winningPlayer = ply
         winningHighestCardRank = newHighestCardRank
@@ -675,22 +726,27 @@ end
 
 -- Called when an event is stopped. Used to do manual cleanup of processes started in the event.
 function EVENT:End()
-    print("EVENT:End called", self.i)
+    print("EVENT:End called")
     self.Started = false
     self.AcceptingDiscards = false
+    self.HaveDiscarded = false
     self.Players = {}
     self.Deck = {}
     self.PlayerBets = {}
 
+    for _, ply in ipairs(player.GetAll()) do
+        ply.Cards = {}
+    end
+
     net.Start("ClosePokerWindow")
     net.Broadcast()
 
-    self.i = self.i or 0
-    self.i = self.i + 1
+    -- self.i = self.i or 0
+    -- self.i = self.i + 1
 
-    if self.i == 10 then
-        error("too many EVENT:End's!")
-    end
+    -- if self.i == 10 then
+    --     error("too many EVENT:End's!")
+    -- end
 end
 
 -- Gets tables of the convars defined for an event. Used primarily by the Randomat 2.0 ULX module to dynamically create configuration pages for each event.
@@ -762,14 +818,22 @@ end)
 
 hook.Add("PlayerDisconnected", "Alter Poker Randomat If Player Leaves", function(ply)
     if EVENT.Started and EVENT.Players[ply] then
-        -- Remove player from table
-        -- If player count is now below minimum, end game
-        -- Otherwise, notify other players of the drop (if it was their turn, they auto-fold)
+        EVENT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
+        -- MAY need to remove player from Players table
+        -- MAY need to add functionality to check if game should end on too low player count
     end
 end)
 
 hook.Add("PlayerDeath", "Player Death Folds In Poker", function(ply)
-    -- TODO (also PlayerDeathSilent or whatever)
+    if EVENT.Started and EVENT.Players[ply] then
+        EVENT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
+    end
+end)
+
+hook.Add("PlayerSilentDeath", "Silent Player Death Folds In Poker", function(ply)
+    if EVENT.Started and EVENT.Players[ply] then
+        EVENT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
+    end
 end)
 
 Randomat:register(EVENT)

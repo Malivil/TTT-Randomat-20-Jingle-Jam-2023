@@ -24,6 +24,11 @@ function EVENT:ClosePanel()
     self.PanelActive = false
 
     if self.PokerMain and self.PokerMain:IsValid() then
+        for _, panel in ipairs(self.PokerMain:GetChildren()) do
+            panel:Remove()
+            panel = nil
+        end
+
         self.PokerMain:Remove()
         self.PokerMain = nil
     end
@@ -77,7 +82,9 @@ function EVENT:SetupControls()
 end
 
 function EVENT:SetupHand(newHand)
+    print("EVENT:SetupHand called with param:", newHand)
     if not self.PokerHand or not self.PokerHand:IsValid() then
+        print("\tCreating new vgui element (only done on first time)")
         self.PokerHand = vgui.Create("Poker_Hand", self.PokerMain)
         self.PokerHand:SetPos(0, self.PokerPlayers:GetTall() + 100)
         self.PokerHand:SetSize(self.PokerMain:GetWide(), 200)
@@ -88,11 +95,14 @@ function EVENT:SetupHand(newHand)
 end
 
 function EVENT:StartBetting(ply, timeToBet)
+    print("Event:StartBetting", ply, timeToBet)
     if ply == self.Self then
+        print("\tSelf turn to bet!")
         self.PokerMain:TemporaryMessage("Your turn to bet!")
         self.PokerMain:SetTimer(timeToBet)
         self.PokerControls:EnableBetting()
     else
+        print("\tAnother player's turn to bet")
         self.PokerMain:TemporaryMessage(ply:Nick() .."'s turn to bet!")
     end
 
@@ -102,18 +112,25 @@ end
 function EVENT:RegisterBet(ply, betType, betAmount)
     print("EVENT:Register bet", ply, betType, betAmount, self.PokerControls)
     if ply == LocalPlayer() then
+        print("RegisterBet debug 0")
         if betType == BettingStatus.FOLD then
+            print("RegisterBet debug 1")
             self.PokerMain:SetSelfFolded()
-        elseif self.PokerControls and betAmount then
-            self.PokerControls:SetCurrentBet(betAmount)
+        elseif self.PokerControls then
+            print("RegisterBet debug 2", self.PokerControls.CurrentRaise)
+            self.PokerControls:SetCurrentBet(self.PokerControls.CurrentRaise)
         end
     else
+        print("RegisterBet debug 3")
         self.PokerPlayers:SetPlayerBet(ply, betType, betAmount)
 
         if betType == BettingStatus.RAISE and self.PokerControls and betAmount then
+            print("RegisterBet debug 4")
             self.PokerControls:SetCurrentRaise(betAmount)
         end
     end
+
+    self.PokerMain:SetTimer(0)
 end
 
 function EVENT:EndBetting()
@@ -131,6 +148,7 @@ function EVENT:BeginDiscarding(timeToDiscard)
 end
 
 function EVENT:EndDiscard()
+    self.PokerMain:SetTimer(0)
     self.PokerMain:TemporaryMessage("Time's up, hand is locked in!")
     self.PokerHand:SetCanDiscard(false)
 end
@@ -187,18 +205,22 @@ end)
 
 net.Receive("DealCards", function()
     if not EVENT.IsPlaying then return end
-
+    print("DealCards net message received")
     local numCardsReceiving = net.ReadUInt(3)
     local newHand = {}
-
+    print("\tAmount received: " .. numCardsReceiving)
     for i = 1, numCardsReceiving do
         local rank = net.ReadUInt(5)
         local suit = net.ReadUInt(3)
-
+        print("\tNew card, rank, suit: ", rank, suit)
         table.insert(newHand, {Rank = rank, Suit = suit})
     end
 
-    EVENT:SetupHand(newHand)
+    if numCardsReceiving == 0 then
+        EVENT:SetupHand(EVENT.Hand)
+    else
+        EVENT:SetupHand(newHand)
+    end
 end)
 
 net.Receive("StartBetting", function()
