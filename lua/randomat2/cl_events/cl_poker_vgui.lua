@@ -32,11 +32,9 @@ function LoganButton:OnCursorExited()
 end
 
 function LoganButton:CustomDoClick()
-    print("Logan button custom doclick")
 end
 
 function LoganButton:DoClick()
-    print("logan button DoClick", self, self.Disabled)
     if not self.Disabled then
         self:CustomDoClick()
     end
@@ -332,7 +330,7 @@ function Card:Paint()
         surface.SetDrawColor(130, 130, 130, 200)
         surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
     elseif self.SelectedForDiscard then
-        surface.SetDrawColor(255, 215, 0, 255)
+        surface.SetDrawColor(255, 60, 60, 255)
         surface.DrawOutlinedRect(0, 0, self:GetWide(), self:GetTall(), 4)
     end
 end
@@ -383,11 +381,13 @@ function Hand:SetCanDiscard(canDiscard)
     end
 
     local function ClosePanels()
-        self.DiscardButton:Remove()
-        self.DiscardButton = nil
+        if self.DiscardButton then
+            self.DiscardButton:Remove()
+            self.DiscardButton = nil
 
-        self.DiscardButtonBackground:Remove()
-        self.DiscardButtonBackground = nil
+            self.DiscardButtonBackground:Remove()
+            self.DiscardButtonBackground = nil
+        end
     end
 
     if canDiscard then
@@ -592,8 +592,6 @@ function Controls:ResetRaiseOptions(baselineBet)
 end
 
 function Controls:EnableBetting()
-    print("Controls:EnableBetting() called")
-
     if self.CurrentBet == self.CurrentRaise then
         self.Check:SetDisabled(false)
     else
@@ -606,7 +604,6 @@ function Controls:EnableBetting()
 end
 
 function Controls:DisableBetting()
-    print("Controls:DisableBetting() called")
     self.Fold:SetDisabled(true)
     self.Check:SetDisabled(true)
     self.Call:SetDisabled(true)
@@ -660,10 +657,12 @@ function ControlButton:Paint()
     surface.SetTextColor(0, 0, 0)
     surface.SetTextPos(self:GetWide() * 0.5 - (textWide * 0.5), self:GetTall() * 0.5 - (textTall * 0.5))
     surface.DrawText(text)
+    
     if self.Disabled then
-        surface.SetDrawColor(0, 0, 0, 100)
+        surface.SetDrawColor(0, 0, 0, 180)
         surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
     end
+
     return true
 end
 
@@ -710,7 +709,6 @@ function Main:SetTimer(time)
 
     self.ShowTimer = true
     self.TimeRemaining = time or 0
-    print("Main:SetTimer() called with time ", time, self.TimeRemaining)
     if not timer.Exists("PokerMainTimer") then
         timer.Create("PokerMainTimer", 1, 0, function()
             if not self or not IsValid(self) then

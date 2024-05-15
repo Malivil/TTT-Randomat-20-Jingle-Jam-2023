@@ -42,7 +42,6 @@ EVENT.PlayerBets = {}
 --// EVENT Functions
 
 function EVENT:GeneratePlayers()
-    print("EVENT:GeneratePlayers called")
     local randomizedLivingPlayers = self:GetAlivePlayers(true)
     table.Shuffle(randomizedLivingPlayers)
     local numPlayersOverMax = #randomizedLivingPlayers - self.MaxPlayers
@@ -63,7 +62,6 @@ end
 
 -- Called when an event is started. Must be defined for an event to work.
 function EVENT:Begin()
-    print("EVENT:Begin called")
     self.Started = true
 
     self:GeneratePlayers()
@@ -83,7 +81,6 @@ end
 
 -- Called once all the players' clients have responded to the initial net message starting the randomat
 function EVENT:StartGame()
-    print("EVENT:StartGame called, registering initial bets below")
     if not self.Started then self:End() return end
 
     local smallBlind = self.Players[1]
@@ -107,7 +104,6 @@ end
 
 -- Called to generate a deck of cards and shuffle them
 function EVENT:GenerateDeck()
-    print("EVENT:GenerateDeck called")
     if not self.Started then self:End() return end
 
     self.Deck = {}
@@ -125,12 +121,9 @@ function EVENT:GenerateDeck()
 end
 
 -- Called to deal a generated deck of cards out to all participating players
-function EVENT:DealDeck()
-    print("EVENT:DealDeck called")
+function EVENT:DealDeck(isSecondDeal)
     if not self.Started then self:End() return end
-    print("\tFor each player in self.Players")
     for _, ply in ipairs(self.Players) do
-        print("\tPlayer:", ply)
         if ply.Status == BettingStatus.FOLD then
             continue
         end
@@ -138,9 +131,6 @@ function EVENT:DealDeck()
         local deckLength = #self.Deck
         ply.Cards = ply.Cards or {}
         local cardCount = #ply.Cards
-        print("\tRemaining deck length: " .. deckLength, "\n\tPlayer's old cards:")
-        PrintTable(ply.Cards)
-        print("\tCards being sent to client:")
         net.Start("DealCards")
             net.WriteUInt(5, 3)
             for i = 1, 5 do
@@ -151,10 +141,10 @@ function EVENT:DealDeck()
                 else
                     card = ply.Cards[i]
                 end
-                print("\t\tRank: " .. card.rank .. ", Suit: " .. card.suit)
                 net.WriteUInt(card.rank, 5)
                 net.WriteUInt(card.suit, 3)
             end
+            net.WriteBool(isSecondDeal or false)
         net.Send(ply)
     end
 end
@@ -179,7 +169,6 @@ end
 
 -- Called to mark a player as starting their turn to bet
 function EVENT:BeginBetting(optionalPlayer)
-    print("EVENT:BeginBetting called", optionalPlayer)
     if not self.Started then self:End() return end
 
     self.ExpectantBetter = nil
@@ -248,7 +237,6 @@ local function ResetOtherPlayersBetStatus(ply)
 end
 
 local function PlayerFolds(ply)
-    print("fold")
     ply.Status = BettingStatus.FOLD
 
     net.Start("PlayerFolded")
@@ -257,7 +245,6 @@ local function PlayerFolds(ply)
 end
 
 local function PlayerChecks(ply)
-    print("check")
     ply.Status = BettingStatus.CHECK
     EVENT.PlayerBets[ply] = GetHighestBet()
 
@@ -267,7 +254,6 @@ local function PlayerChecks(ply)
 end
 
 local function PlayerCalls(ply)
-    print("call")
     ply.Status = BettingStatus.CALL
     EVENT.PlayerBets[ply] = GetHighestBet()
 
@@ -278,7 +264,6 @@ local function PlayerCalls(ply)
 end
 
 local function PlayerRaises(ply, raise)
-    print("raise")
     ply.Status = BettingStatus.RAISE
     ResetOtherPlayersBetStatus(ply)
     EVENT.PlayerBets[ply] = raise
@@ -291,9 +276,6 @@ end
 
 -- Called to register a player's bet (or lack thereof)
 function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
-    print("EVENT:RegisterPlayerBet called", ply, forceBet, self.ExpectantBetter)
-    print("\tBet Type: " .. BetStatusToString(bet), bet)
-    print("\tBet Amount: " .. BetToString(betAmount), betAmount)
     if not self.Started then self:End() return end
 
     -- If we receive a bet when we're not expecting (and it isn't a fold), ignore it
@@ -372,7 +354,6 @@ local function EnoughPlayersRemaining()
 end
 
 function EVENT:EndBetting()
-    print("EVENT:EndBetting called")
     timer.Simple(5, function()
         local epr = EnoughPlayersRemaining()
 
@@ -382,7 +363,6 @@ function EVENT:EndBetting()
             end
         end
 
-        print("\tHave we already discarded, or are there enough players remaining?", self.HaveDiscarded, epr)
         if self.HaveDiscarded or not epr then
             self:CalculateWinner()
         else
@@ -392,7 +372,6 @@ function EVENT:EndBetting()
 end
 
 function EVENT:BeginDiscarding()
-    print("EVENT:BeginDiscarding called")
     if not self.Started then self:End() return end
 
     net.Start("StartDiscard")
@@ -401,10 +380,9 @@ function EVENT:BeginDiscarding()
     self.AcceptingDiscards = true
 
     timer.Create("AcceptDiscards", 30, 1, function()
-        print("Discard window closed after 30 seconds, calling DealDeck in 5 seconds...")
         self.AcceptingDiscards = false
         self.HaveDiscarded = true
-        self:DealDeck()
+        self:DealDeck(true)
 
         timer.Simple(5, function()
             self:BeginBetting()
@@ -423,7 +401,6 @@ local function AllPlayersDiscarded()
 end
 
 function EVENT:RegisterPlayerDiscard(ply, discardsTable)
-    print("EVENT:RegisterPlayerDiscard called", ply, discardsTable)
     -- PrintTable(discardsTable)
     if not self.Started then self:End() return end
 
@@ -433,15 +410,9 @@ function EVENT:RegisterPlayerDiscard(ply, discardsTable)
     PrintTable(ply.Cards)  
 
     for _, cardToRemove in ipairs(discardsTable) do
-        print("\tCard to be removed in discardsTable:", cardToRemove.rank, cardToRemove.suit)
         local toBeRemoved
-        print("\tLooping through cards in hand (ply.Cards):")
         for index, cardInHand in ipairs(ply.Cards) do
-            print("\t\t" .. index, cardInHand.rank, cardInHand.suit)
-            print("\t\tComparing card in hand to card to be removed:", cardToRemove.rank, cardInHand.rank, cardToRemove.suit, cardInHand.suit)
             if cardToRemove.rank == cardInHand.rank and cardToRemove.suit == cardInHand.suit then
-                print("\tCard to remove: ", cardToRemove.rank, cardToRemove.suit)
-                print("\tIndex: " .. index)
                 toBeRemoved = index
                 -- break
             end
@@ -451,24 +422,18 @@ function EVENT:RegisterPlayerDiscard(ply, discardsTable)
             table.remove(ply.Cards, toBeRemoved)
         end
     end
-    print("\tRemaining cards:")
-    PrintTable(ply.Cards)    
 
     self.Players[table.KeyFromValue(self.Players, ply)].HasDiscarded = true
-    print("\tChecking if all remaining players have discarded...")
     if AllPlayersDiscarded() then
-        print("\t\tAll players discarded! Ending accept-discards window early")
         timer.Remove("AcceptDiscards")
         self.AcceptingDiscards = false
         self.HaveDiscarded = true
 
-        self:DealDeck()
+        self:DealDeck(true)
 
         timer.Simple(5, function()
             self:BeginBetting()
         end)
-    else
-        print("\t\tPlayers still remaining to discard!")
     end
 end
 
@@ -726,7 +691,6 @@ end
 
 -- Called when an event is stopped. Used to do manual cleanup of processes started in the event.
 function EVENT:End()
-    print("EVENT:End called")
     self.Started = false
     self.AcceptingDiscards = false
     self.HaveDiscarded = false
@@ -740,13 +704,6 @@ function EVENT:End()
 
     net.Start("ClosePokerWindow")
     net.Broadcast()
-
-    -- self.i = self.i or 0
-    -- self.i = self.i + 1
-
-    -- if self.i == 10 then
-    --     error("too many EVENT:End's!")
-    -- end
 end
 
 -- Gets tables of the convars defined for an event. Used primarily by the Randomat 2.0 ULX module to dynamically create configuration pages for each event.
