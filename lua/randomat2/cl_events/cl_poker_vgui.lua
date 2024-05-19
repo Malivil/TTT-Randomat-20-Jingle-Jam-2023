@@ -503,7 +503,7 @@ function Controls:Setup()
     self.Fold:SetPos(margin, self:GetTall() - buttonHeight - margin)
     self.Fold:SetSize(buttonWidth, buttonHeight)
     self.Fold:SetText(BetStatusToString(BettingStatus.FOLD))
-    self.Fold:SetDisabled(true)
+    self.Fold:SetEnabled(false)
     self.Fold.CustomDoClick = function()
         net.Start("MakeBet")
             net.WriteUInt(BettingStatus.FOLD, 3)
@@ -517,7 +517,7 @@ function Controls:Setup()
     self.Check:SetPos(margin * 2 + buttonWidth, self:GetTall() - buttonHeight - margin)
     self.Check:SetSize(buttonWidth, buttonHeight)
     self.Check:SetText(BetStatusToString(BettingStatus.CHECK))
-    self.Check:SetDisabled(true)
+    self.Check:SetEnabled(false)
     self.Check.CustomDoClick = function()
         net.Start("MakeBet")
             net.WriteUInt(BettingStatus.CHECK, 3)
@@ -531,7 +531,7 @@ function Controls:Setup()
     self.Call:SetPos(margin * 3 + buttonWidth * 2, self:GetTall() - buttonHeight - margin)
     self.Call:SetSize(buttonWidth, buttonHeight)
     self.Call:SetText(BetStatusToString(BettingStatus.CALL))
-    self.Call:SetDisabled(true)
+    self.Call:SetEnabled(false)
     self.Call.CustomDoClick = function()
         net.Start("MakeBet")
             net.WriteUInt(BettingStatus.CALL, 3)
@@ -545,7 +545,7 @@ function Controls:Setup()
     self.Raise:SetPos(margin * 4 + buttonWidth * 3, self:GetTall() - buttonHeight - margin)
     self.Raise:SetSize(buttonWidth, buttonHeight)
     self.Raise:SetText(BetStatusToString(BettingStatus.RAISE))
-    self.Raise:SetDisabled(true)
+    self.Raise:SetEnabled(false)
     self.Raise.CustomDoClick = function()
         local _, val = self.RaiseOpt:GetSelected()
 
@@ -566,6 +566,7 @@ function Controls:Setup()
     self.RaiseOpt:SetSize(buttonWidth, buttonHeight)
     self.RaiseOpt:SetSortItems(false)
     self.RaiseOpt:AddSpacer()
+    self.RaiseOpt:SetEnabled(false)
     self.RaiseOpt.OnSelect = function(raiseOptSelf, index, value, data)
     end
     -- Just minimize this function and pretend it's all a bad dream
@@ -686,29 +687,28 @@ function Controls:ResetRaiseOptions(baselineBet)
     end
 
     if baselineBet >= Bets.ALL then
-        self.Raise:SetDisabled(true)
-        -- self.RaiseOpt:SetDisabled(true)
+        self.Raise:SetEnabled(false)
         self.RaiseOpt:SetValue("NONE")
     end
 end
 
 function Controls:EnableBetting()
     if self.CurrentBet == self.CurrentRaise then
-        self.Check:SetDisabled(false)
+        self.Check:SetEnabled(true)
     else
-        self.Call:SetDisabled(false)
+        self.Call:SetEnabled(true)
     end
 
-    self.Fold:SetDisabled(false)
-    self.Raise:SetDisabled(false)
+    self.Fold:SetEnabled(true)
+    self.Raise:SetEnabled(true)
     self.RaiseOpt:SetEnabled(true)
 end
 
 function Controls:DisableBetting()
-    self.Fold:SetDisabled(true)
-    self.Check:SetDisabled(true)
-    self.Call:SetDisabled(true)
-    self.Raise:SetDisabled(true)
+    self.Fold:SetEnabled(false)
+    self.Check:SetEnabled(false)
+    self.Call:SetEnabled(false)
+    self.Raise:SetEnabled(false)
     self.RaiseOpt:SetEnabled(false)
 end
 
@@ -744,7 +744,7 @@ function ControlButton:Paint()
     local text = self:GetText()
     surface.SetFont(self.Font)
     local textWide, textTall = surface.GetTextSize(text)
-    if not self.Disabled and self.IsHover then -- Technically not necessary, but if the cursor is already hovering when it gets disabled, it still highlights until the cursor leaves
+    if not self.Disabled and self.IsHover then
         surface.SetDrawColor(180, 255, 180)
     else
         surface.SetDrawColor(255, 255, 255)

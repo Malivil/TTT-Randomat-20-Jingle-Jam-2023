@@ -221,8 +221,9 @@ end
 
 local function AllPlayersMatchingBets()
     local betToCompare = 0
-
+    print("AllPlayersMatchingBets called")
     for _, ply in ipairs(EVENT.Players) do
+        print(ply:Nick(), "Status: " .. ply.Status)
         if ply.Status == BettingStatus.NONE then
             return false
         end
@@ -262,6 +263,7 @@ local function ResetOtherPlayersBetStatus(ply)
 end
 
 local function PlayerFolds(ply)
+    print("Player folds", ply)
     ply.Status = BettingStatus.FOLD
 
     net.Start("PlayerFolded")
@@ -270,6 +272,7 @@ local function PlayerFolds(ply)
 end
 
 local function PlayerChecks(ply)
+    print("Player checks", ply)
     ply.Status = BettingStatus.CHECK
     EVENT.PlayerBets[ply] = GetHighestBet()
 
@@ -279,6 +282,7 @@ local function PlayerChecks(ply)
 end
 
 local function PlayerCalls(ply)
+    print("Player calls", ply)
     ply.Status = BettingStatus.CALL
     EVENT.PlayerBets[ply] = GetHighestBet()
 
@@ -289,6 +293,7 @@ local function PlayerCalls(ply)
 end
 
 local function PlayerRaises(ply, raise)
+    print("Player raises", ply)
     ply.Status = BettingStatus.RAISE
     ResetOtherPlayersBetStatus(ply)
     EVENT.PlayerBets[ply] = raise
@@ -487,6 +492,7 @@ function EVENT:CalculateWinner()
     if not self.Started then self:End() return end
 
     local winner, hand = self:GetWinningPlayer()
+    print("calculated winner + hand:", winner, hand)
 
     if winner == nil then
         -- Everyone died! Cancel the game
@@ -508,14 +514,17 @@ end
 
 -- This is gonna get fuckinnnnnnnnn messy
 local function GetHandRank(ply)
+    print("GetHandRank called")
     local hand = ply.Cards
+    PrintTable(ply.Cards)
 
     -- Check for flush
     local isFlush = true
     local suit = Suits.NONE
-
+    print("\tChecking for flush")
     for _, card in ipairs(hand) do
-        if suit == 0 then
+        print("\t\tSuit:", card.suit)
+        if suit == Suits.NONE then
             suit = card.suit
         elseif suit ~= card.suit then
             isFlush = false
@@ -526,22 +535,23 @@ local function GetHandRank(ply)
 
     -- Check for straights
     local isStraight = true
-    local prevNum = Cards.NONE
+    local prevRank = Cards.NONE
     local handCopyAsc = table.Copy(hand)
-
+    print("\tChecking for straight")
     table.sort(handCopyAsc, function(cardOne, cardTwo)
         return cardOne.rank < cardTwo.rank
     end)
-
+    print("\tSorted hand:")
+    PrintTable(handCopyAsc)
     for _, card in ipairs(handCopyAsc) do
-        if prevNum == 0 then
-            prevNum = card.rank
-        elseif not card.rank == prevNum + 1 or (prevNum == 1 and card.rank ~= Cards.TEN) then
+        if prevRank == Cards.NONE then
+            prevRank = card.rank
+        elseif card.rank ~= prevRank + 1 then -- or (prevRank == 1 and card.rank ~= Cards.TEN) then
             isStraight = false
 
             break
         else
-            prevNum = card.rank
+            prevRank = card.rank
         end
     end
 
@@ -552,11 +562,11 @@ local function GetHandRank(ply)
     local hasPair = false
     local hasTwoPair = false
     local hasPairsRank = Cards.NONE
-
+    print("\tChecking for kinds")
     for _, card in ipairs(hand) do
         table.insert(suitsByRank[card.rank], card.suit)
     end
-
+    PrintTable(suitsByRank)
     for rank, tbl in ipairs(suitsByRank) do
         local count = #tbl
 
@@ -595,7 +605,7 @@ local function GetHandRank(ply)
     -- Check possible hands in descending order --
 
     -- Any pair+ featuring a nine of diamonds
-    if suitsByRank[Cards.NINE] and #suitsByRank[Cards.NINE] > 1 and table.HasValue(suitsByRank[card.rank], Suits.DIAMONDS) then -- TO FIX "card" here is nil
+    if suitsByRank[Cards.NINE] and #suitsByRank[Cards.NINE] > 1 and table.HasValue(suitsByRank[Cards.NINE], Suits.DIAMONDS) then
         return Hands.NINE_OF_DIAMONDS, 0, 0, {}, "Two+ of a kind with a 9 of diamonds"
     end
 
@@ -676,7 +686,7 @@ function EVENT:GetWinningPlayer()
         end
 
         local newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, str = GetHandRank(ply)
-
+        print("\t" .. "ply:Nick() has:", newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, str)
         if newHandRank == Hands.NINE_OF_DIAMONDS then
             return ply, str
         elseif newHandRank > winningHandRank then
