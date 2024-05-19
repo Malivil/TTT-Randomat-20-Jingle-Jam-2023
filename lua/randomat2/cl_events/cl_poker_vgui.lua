@@ -37,13 +37,14 @@ end
 function LoganButton:DoClick()
     if not self.Disabled then
         self:CustomDoClick()
+        surface.PlaySound("ui/buttonclick.wav")
     end
 end
 
 vgui.Register("Poker_Button", LoganButton, "DButton")
 
 local PlayerCard = table.Copy(LoganPanel)
-PlayerCard.BetIcon = Material("a")
+PlayerCard.BetIcon = Material("vgui/ttt/randomats/poker/poker_hand.png")
 PlayerCard.Player = nil
 PlayerCard.NoPlayerName = "No Player!"
 PlayerCard.ActionText = ""
@@ -291,7 +292,7 @@ function Card:UpdateCanDraw()
     if self.Rank and self.Rank > Cards.NONE and self.Suit and self.Suit > Suits.NONE then
         self.CanDraw = true
 
-        self.Graphic = Material(self.GraphicsDir[self.Suit] .. CardRankToName(self.Rank) .. ".png", "noclamp")
+        self.Graphic = Material(self.GraphicsDir[self.Suit] .. CardRankToFileName(self.Rank) .. ".png", "noclamp")
     end
 end
 
@@ -480,14 +481,12 @@ Controls.CurrentRaise = 2
 Controls.CurrentBet = 0
 
 function Controls:SetCurrentBet(amount)
-    print("SetCurrentBet called with amount: ", amount)
     self.CurrentBet = amount
 
     self:SetCurrentRaise(amount)
 end
 
 function Controls:SetCurrentRaise(amount)
-    print("SetCurrentRaise called with amount: ", amount)
     self.CurrentRaise = amount
 
     self:ResetRaiseOptions(self.CurrentRaise)
@@ -560,24 +559,126 @@ function Controls:Setup()
         end
     end
 
+    -- I'm *not* making this a custom component because this is used only here and I'm sick of working on custom vgui elements
+    -- Most of this is ripped from the specific component's github page and then changed with styling to match everything else
     self.RaiseOpt = vgui.Create("DComboBox", self)
     self.RaiseOpt:SetPos(margin * 4 + buttonWidth * 4 + 2, self:GetTall() - buttonHeight - margin)
     self.RaiseOpt:SetSize(buttonWidth, buttonHeight)
     self.RaiseOpt:SetSortItems(false)
     self.RaiseOpt:AddSpacer()
-    self:ResetRaiseOptions(self.CurrentRaise)
     self.RaiseOpt.OnSelect = function(raiseOptSelf, index, value, data)
     end
+    -- Just minimize this function and pretend it's all a bad dream
+    self.RaiseOpt.OpenMenu = function(pnl)
+        pnl:CloseMenu()
+        local parent = pnl
+        while ( IsValid( parent ) && !parent:IsModal() ) do
+            parent = parent:GetParent()
+        end
+        if ( !IsValid( parent ) ) then parent = pnl end
+
+        CloseDermaMenus()
+        pnl.Menu = vgui.Create( "DMenu", parent )
+        pnl.Menu.Paint = function(menuPnl)
+            surface.SetDrawColor(255, 255, 255)
+            surface.DrawRect(0, 0, pnl:GetWide(), pnl:GetTall())
+
+            surface.SetDrawColor(0, 0, 0)
+            surface.DrawOutlinedRect(0, 0, pnl:GetWide(), pnl:GetTall(), 1)
+        end
+        pnl.Menu.AddOption = function( menuPnl, strText, funcFunction )
+            local pnl = vgui.Create( "DMenuOption", menuPnl )
+            pnl:SetMenu( menuPnl )
+            pnl:SetText( strText )
+            pnl.OnCursorEntered = function()
+                pnl.IsHover = true
+            end
+            pnl.OnCursorExited = function()
+                pnl.IsHover = false
+            end
+            pnl.Paint = function()
+                surface.SetFont("Trebuchet22")
+                local textWide, textTall = surface.GetTextSize(pnl:GetText())
+                if pnl.IsHover then
+                    surface.SetDrawColor(180, 255, 180)
+                else
+                    surface.SetDrawColor(255, 255, 255)
+                end
+
+                surface.DrawRect(0, 0, pnl:GetWide(), pnl:GetTall())
+
+                surface.SetTextColor(0, 0, 0)
+                surface.SetTextPos(pnl:GetWide() * 0.5 - (textWide * 0.5), pnl:GetTall() * 0.5 - (textTall * 0.5))
+                surface.DrawText(pnl:GetText())
+
+                surface.SetDrawColor(0, 0, 0)
+                surface.DrawLine(0, pnl:GetTall() - 1, pnl:GetWide(), pnl:GetTall() - 1)
+
+                return true
+            end
+            if ( funcFunction ) then pnl.DoClick = funcFunction end
+        
+            menuPnl:AddPanel( pnl )
+        
+            return pnl
+        end
+
+        for k, v in pairs( pnl.Choices ) do
+			local option = pnl.Menu:AddOption( v, function() pnl:ChooseOption( v, k ) end )
+			if ( pnl.Spacers[ k ] ) then
+				pnl.Menu:AddSpacer()
+			end
+		end
+
+        local x, y = pnl:LocalToScreen( 0, pnl:GetTall() )
+        pnl.Menu:SetMinimumWidth( pnl:GetWide() )
+        pnl.Menu:Open( x, y, false, pnl )
+
+        pnl:OnMenuOpened( pnl.Menu )
+    end
+    self.RaiseOpt.OnCursorEntered = function(pnl)
+        pnl.IsHover = true
+    end
+    self.RaiseOpt.OnCursorExited = function(pnl)
+        pnl.IsHover = false
+    end
+    self.RaiseOpt.Paint = function(pnl)
+        surface.SetFont("Trebuchet22")
+        local textWide, textTall = surface.GetTextSize(pnl:GetText())
+        if not pnl:GetDisabled() and pnl.IsHover then
+            surface.SetDrawColor(180, 255, 180)
+        else
+            surface.SetDrawColor(255, 255, 255)
+        end
+
+        surface.DrawRect(0, 0, pnl:GetWide(), pnl:GetTall())
+
+        surface.SetDrawColor(0, 0, 0)
+        surface.DrawOutlinedRect(0, 0, pnl:GetWide(), pnl:GetTall(), 1)
+
+        surface.SetTextColor(0, 0, 0)
+        surface.SetTextPos(8, pnl:GetTall() * 0.5 - (textTall * 0.5))
+        surface.DrawText(pnl:GetText())
+        
+        if pnl:GetDisabled() then
+            surface.SetDrawColor(0, 0, 0, 180)
+            surface.DrawRect(0, 0, pnl:GetWide(), pnl:GetTall())
+        end
+
+        return true
+    end
+
+    self:ResetRaiseOptions(self.CurrentRaise)
 end
 
 function Controls:ResetRaiseOptions(baselineBet)
     self.RaiseOpt:Clear()
-    self.RaiseOpt:SetValue("Bet")
+    self.RaiseOpt:SetValue("BET")
 
     baselineBet = baselineBet or 0
 
     if baselineBet <= Bets.HALF then
-        self.RaiseOpt:AddChoice(BetToString(Bets.THREEQ), Bets.THREEQ)
+        self.RaiseOpt:AddChoice("3/4", Bets.THREEQ)
     end
 
     if baselineBet <= Bets.THREEQ then
@@ -680,8 +781,8 @@ function Main:Init()
     self:SetTitle("")
 end
 
-function Main:TemporaryMessage(message)
-    self.DisplayMessageTime = CurTime() + 5
+function Main:TemporaryMessage(message, optionalTime)
+    self.DisplayMessageTime = CurTime() + (optionalTime or 5) -- TODO turn into convar
     self.DisplayTemporaryMessage = true
     self.DisplayMessage = message
 end
@@ -697,8 +798,13 @@ function Main:SetSelfFolded()
 end
 
 function Main:SetTimer(time)
+    if time == 0 then
+        self.ShowTimer = false
+        timer.Remove("PokerMainTimer")
+        return
+    end
+
     local width = self:GetWide()
-    --local height = self:GetTall()
 
     self.PolyHeader = {
         {x = width * 0.5 + 100, y = 1},
@@ -712,6 +818,7 @@ function Main:SetTimer(time)
     if not timer.Exists("PokerMainTimer") then
         timer.Create("PokerMainTimer", 1, 0, function()
             if not self or not IsValid(self) then
+                self.ShowTimer = false
                 timer.Remove("PokerMainTimer")
 
                 return

@@ -55,7 +55,7 @@ Suits = {
     CLUBS = 4
 }
 
-function CardRankToName(rank)
+function CardRankToFileName(rank)
     if rank == Cards.NONE then
         return ""
     elseif rank == Cards.ACE then
@@ -68,6 +68,56 @@ function CardRankToName(rank)
         return "king"
     else
         return tostring(rank)
+    end
+end
+
+function CardRankToName(rank)
+    if rank == Cards.NONE then
+        return ""
+    elseif rank == Cards.ACE then
+        return "Ace"
+    elseif rank == Cards.JACK then
+        return "Jack"
+    elseif rank == Cards.QUEEN then
+        return "Queen"
+    elseif rank == Cards.KING then
+        return "King"
+    elseif rank == Cards.TWO then
+        return "Two"
+    elseif rank == Cards.THREE then
+        return "Three"
+    elseif rank == Cards.FOUR then
+        return "Four"
+    elseif rank == Cards.FIVE then
+        return "Five"
+    elseif rank == Cards.SIX then
+        return "Six"
+    elseif rank == Cards.SEVEN then
+        return "Seven"
+    elseif rank == Cards.EIGHT then
+        return "Eight"
+    elseif rank == Cards.NINE then
+        return "Nine"
+    elseif rank == Cards.TEN then
+        return "Ten"
+    else
+        return tostring(rank)
+    end
+end
+
+function CardSuitToName(suit)
+    if suit == Suits.NONE then
+        return ""
+    elseif suit == Suits.SPADES then
+        return "Spades"
+    elseif suit == Suits.HEARTS then
+        return "Hearts"
+    elseif suit == Suits.DIAMONDS then
+        return "Diamonds"
+    elseif suit == Suits.CLUBS then
+        return "Clubs"
+    else
+        return tostring(suit)
     end
 end
 

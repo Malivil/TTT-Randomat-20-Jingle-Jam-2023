@@ -1,6 +1,11 @@
 --// Logan Christianson
 
 local EVENT = {}
+local EventSounds = {
+    "poker/poker_decks.ogg",
+    "poker/poker_practically_touching.ogg",
+    "poker/poker_they_touched.ogg"
+}
 
 EVENT.Players = {}
 EVENT.Hand = {}
@@ -18,6 +23,10 @@ function EVENT:SetupPanel()
     self.PokerPlayers:SetPos(0, 0)
     self.PokerPlayers:SetSize(self.PokerMain:GetWide(), 200)
     self.PokerPlayers:SetPlayers(self.Players)
+
+    timer.Simple(1, function()
+        surface.PlaySound(EventSounds[math.random(#EventSounds)]) -- TODO make disableable with convar
+    end)
 end
 
 function EVENT:ClosePanel()
@@ -72,12 +81,10 @@ function EVENT:AlertBlinds(bigBlind, littleBlind)
 end
 
 function EVENT:SetupControls()
-    -- if not self.PokerControls or not self.PokerControls:IsValid() then
-        self.PokerControls = vgui.Create("Poker_Controls", self.PokerMain)
-        self.PokerControls:SetPos(0, self.PokerPlayers:GetTall())
-        self.PokerControls:SetSize(self.PokerMain:GetWide(), 100)
-        self.PokerControls:Setup()
-    -- end
+    self.PokerControls = vgui.Create("Poker_Controls", self.PokerMain)
+    self.PokerControls:SetPos(0, self.PokerPlayers:GetTall())
+    self.PokerControls:SetSize(self.PokerMain:GetWide(), 100)
+    self.PokerControls:Setup()
 end
 
 function EVENT:SetupHand(newHand, isSecondDeal)
@@ -87,11 +94,28 @@ function EVENT:SetupHand(newHand, isSecondDeal)
         self.PokerHand:SetSize(self.PokerMain:GetWide(), 200)
     end
 
+    local newCards = ""
+    if self.Hand then
+        for _, oldCard in ipairs(self.Hand) do
+            for _, newCard in ipairs(newHand) do
+                if oldCard.Suit == newCard.Suit and oldCard.Rank == newCard.Rank then
+                    newCard.Kept = true
+                end
+            end
+        end
+
+        for _, card in ipairs(newHand) do
+            if not card.Kept then
+                newCards = newCards .. CardRankToName(card.Rank) .. " of " .. CardSuitToName(card.Suit) .. "\n"
+            end
+        end
+    end
+
     self.Hand = newHand
     self.PokerHand:SetHand(newHand)
 
     if isSecondDeal then
-        self.PokerMain:TemporaryMessage("You have new cards") -- TODO
+        self.PokerMain:TemporaryMessage("Your new cards:\n" .. newCards)
     end
 end
 
@@ -151,7 +175,7 @@ function EVENT:RegisterWinner(winner, hand)
             self.PokerMain:PermanentMessage(winner:Nick() .. " wins with " .. hand .. "!")
         end
     else
-        self.PokerMain:PermanentMessage("Game over! No winning player!")
+        self.PokerMain:PermanentMessage("Game over. No winning player!\nAt least two players must remain alive to play!")
     end
 
     self.PokerHand:SetCanDiscard(false)
@@ -160,6 +184,22 @@ end
 
 net.Receive("StartPokerRandomat", function()
     EVENT.Self = LocalPlayer()
+
+    local numPlayers = net.ReadUInt(3)
+    for i = 1, numPlayers do
+        local ply = net.ReadEntity()
+
+        if ply == EVENT.Self then
+            net.Start("StartPokerRandomatCallback")
+            net.SendToServer()
+
+            break
+        end
+    end
+    print("StartPokerRandomat called")
+end)
+
+net.Receive("BeginPokerRandomat", function()
     local players = {}
     local selfIsPlaying = false
 
@@ -176,11 +216,7 @@ net.Receive("StartPokerRandomat", function()
 
     -- TODO probably sort the players table so the "first" in it is the player to the "left" of LocalPlayer
     EVENT:RegisterPlayers(players, selfIsPlaying)
-
-    if selfIsPlaying then
-        net.Start("StartPokerRandomatCallback")
-        net.SendToServer()
-    end
+    print("BeginPokerRandomat called")
 end)
 
 net.Receive("NotifyBlinds", function()
@@ -191,6 +227,7 @@ net.Receive("NotifyBlinds", function()
 
     EVENT:SetupControls()
     EVENT:AlertBlinds(bigBlind, smallBlind)
+    print("NotifyBlinds called")
 end)
 
 net.Receive("DealCards", function()

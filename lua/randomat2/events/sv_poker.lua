@@ -2,6 +2,7 @@
 
 util.AddNetworkString("StartPokerRandomat")
 util.AddNetworkString("StartPokerRandomatCallback")
+util.AddNetworkString("BeginPokerRandomat")
 util.AddNetworkString("NotifyBlinds")
 util.AddNetworkString("DealCards")
 util.AddNetworkString("StartBetting")
@@ -35,19 +36,23 @@ EVENT.Categories = {"gamemode", "largeimpact", "fun"}
 EVENT.MaxPlayers = 7
 EVENT.MinPlayers = 2
 EVENT.Started = false
+EVENT.Running = false
 EVENT.Players = {}
 EVENT.Deck = {}
 EVENT.PlayerBets = {}
 
 --// EVENT Functions
 
+-- Used to populate EVENT.Players with living players, up to the max amount
 function EVENT:GeneratePlayers()
+    local removedPlayers = {}
     local randomizedLivingPlayers = self:GetAlivePlayers(true)
     table.Shuffle(randomizedLivingPlayers)
     local numPlayersOverMax = #randomizedLivingPlayers - self.MaxPlayers
 
     while numPlayersOverMax > 0 do
-        table.remove(randomizedLivingPlayers) -- TODO add them to a different table and send an apology message :(
+        local removedPlayer = table.remove(randomizedLivingPlayers)
+        table.insert(removedPlayers, removedPlayer)
         numPlayersOverMax = numPlayersOverMax - 1
     end
 
@@ -55,6 +60,10 @@ function EVENT:GeneratePlayers()
         local nextPlayerIndex = (i % #randomizedLivingPlayers) + 1 -- Makes it so final player's 'next player' wraps around to [1]
         randomizedLivingPlayers[i].NextPlayer = randomizedLivingPlayers[nextPlayerIndex]
         randomizedLivingPlayers[i].Status = BettingStatus.NONE
+    end
+
+    for _, ply in ipairs(removedPlayers) do
+        ply:ChatPrint("Sorry " .. ply:Nick() .. ", the maximum number of players was exceeded, and you drew the short stick! The event currently supports up to " .. self.MaxPlayers .. " players.")
     end
 
     self.Players = randomizedLivingPlayers
@@ -70,7 +79,6 @@ function EVENT:Begin()
         ply.Status = BettingStatus.NONE
     end
 
-    -- TODO start a timer that cancels all included players which did not respond to request
     net.Start("StartPokerRandomat")
         net.WriteUInt(#self.Players, 3)
         for _, ply in ipairs(self.Players) do
@@ -79,9 +87,24 @@ function EVENT:Begin()
     net.Broadcast()
 end
 
--- Called once all the players' clients have responded to the initial net message starting the randomat
+-- Called after all players responded to the initial net message and any who haven't are removed
+function EVENT:RefreshPlayers()
+    if not self.Started then self:End() return end
+
+    net.Start("BeginPokerRandomat")
+        net.WriteUInt(#self.Players, 3)
+        for _, ply in ipairs(self.Players) do
+            net.WriteEntity(ply)
+        end
+    net.Broadcast()
+end
+
+-- Called once all the validated players' clients have responded to BeginPokerRandomat net message
 function EVENT:StartGame()
     if not self.Started then self:End() return end
+
+    self:RefreshPlayers()
+    self.Running = true
 
     local smallBlind = self.Players[1]
     local bigBlind = self.Players[2]
@@ -123,6 +146,7 @@ end
 -- Called to deal a generated deck of cards out to all participating players
 function EVENT:DealDeck(isSecondDeal)
     if not self.Started then self:End() return end
+
     for _, ply in ipairs(self.Players) do
         if ply.Status == BettingStatus.FOLD then
             continue
@@ -131,6 +155,7 @@ function EVENT:DealDeck(isSecondDeal)
         local deckLength = #self.Deck
         ply.Cards = ply.Cards or {}
         local cardCount = #ply.Cards
+
         net.Start("DealCards")
             net.WriteUInt(5, 3)
             for i = 1, 5 do
@@ -274,6 +299,37 @@ local function PlayerRaises(ply, raise)
     net.Broadcast()
 end
 
+local function EnoughPlayersRemaining()
+    local atLeastOne = false
+    for _, ply in ipairs(EVENT.Players) do
+        if ply.Status ~= BettingStatus.FOLD then
+            if atLeastOne then
+                return true
+            else
+                atLeastOne = true
+            end
+        end
+    end
+
+    return false
+end
+
+local function CanDispenseWinnings()
+    local onePlayerStillAliveWithBets = false
+
+    for _, ply in ipairs(EVENT.Players) do
+        if ply:Alive() and EVENT.PlayerBets[ply] then
+            if onePlayerStillAliveWithBets then
+                return true
+            else
+                onePlayerStillAliveWithBets = true
+            end
+        end
+    end
+
+    return false
+end
+
 -- Called to register a player's bet (or lack thereof)
 function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
     if not self.Started then self:End() return end
@@ -295,7 +351,6 @@ function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
         elseif bet == BettingStatus.CHECK then
             if highestBet > betAmount then
                 PlayerFolds(ply)
-                -- PrintTable(self.PlayerBets)
             else
                 PlayerChecks(ply)
             end
@@ -314,48 +369,42 @@ function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
         if not forceBet then
             print("\tChecking if all players have matching bets or are folded...")
             if AllPlayersMatchingBets() then
-                print("\t\tSuccess! All players have matching bets")
                 net.Start("PlayersFinishedBetting")
                 net.Broadcast()
 
                 self:EndBetting()
             else
                 local nextPly = GetNextValidPlayer(ply)
-
-                print("\t\tMore players left betting! Next player:", nextPly)
                 
                 self:BeginBetting(nextPly)
             end
         end
     elseif bet < BettingStatus.CHECK then
-        print("\tOut of sync player bet registered! Marking player as folded:", ply)
         -- Out of sync player fold, used primarily for player disconnecting/death
         ply.Status = BettingStatus.FOLD
 
         net.Start("PlayerFolded")
             net.WriteEntity(ply)
         net.Broadcast()
-    end
-end
 
-local function EnoughPlayersRemaining()
-    local atLeastOne = false
-    for _, ply in ipairs(EVENT.Players) do
-        if ply.Status > BettingStatus.FOLD then
-            if atLeastOne then
-                return true
+        if not EnoughPlayersRemaining() then
+            if CanDispenseWinnings() then
+                self:CalculateWinner()
             else
-                atLeastOne = true
+                net.Start("DeclareNoWinner")
+                net.Broadcast()
+
+                timer.Simple(5, function()
+                    self:End()
+                end)
             end
         end
     end
-
-    return false
 end
 
 function EVENT:EndBetting()
     timer.Simple(5, function()
-        local epr = EnoughPlayersRemaining()
+        local epr = EnoughPlayersRemaining() -- Needs to be ran BEFORE changing player's Status prop
 
         for _, ply in ipairs(self.Players) do
             if ply.Status ~= BettingStatus.FOLD then
@@ -401,13 +450,9 @@ local function AllPlayersDiscarded()
 end
 
 function EVENT:RegisterPlayerDiscard(ply, discardsTable)
-    -- PrintTable(discardsTable)
     if not self.Started then self:End() return end
 
     if not self.AcceptingDiscards then return end
-
-    print("\tBefore removing cards:")
-    PrintTable(ply.Cards)  
 
     for _, cardToRemove in ipairs(discardsTable) do
         local toBeRemoved
@@ -451,7 +496,6 @@ function EVENT:CalculateWinner()
         net.Start("DeclareWinner")
             net.WriteEntity(winner)
             net.WriteString(hand)
-            --Should we also send ALL card info here? You get to see your opponent's hands normally
         net.Broadcast()
 
         self:ApplyRewards(winner)
@@ -551,7 +595,7 @@ local function GetHandRank(ply)
     -- Check possible hands in descending order --
 
     -- Any pair+ featuring a nine of diamonds
-    if suitsByRank[Cards.NINE] and #suitsByRank[Cards.NINE] > 1 and table.HasValue(suitsByRank[card.rank], Suits.DIAMONDS) then
+    if suitsByRank[Cards.NINE] and #suitsByRank[Cards.NINE] > 1 and table.HasValue(suitsByRank[card.rank], Suits.DIAMONDS) then -- TO FIX "card" here is nil
         return Hands.NINE_OF_DIAMONDS, 0, 0, {}, "Two+ of a kind with a 9 of diamonds"
     end
 
@@ -664,7 +708,6 @@ function EVENT:ApplyRewards(winner)
     if not self.Started then self:End() return end
 
     local runningHealth = 0
-    PrintTable(self.PlayerBets)
     for _, ply in ipairs(self.Players) do
         if ply == winner then
             continue
@@ -685,15 +728,21 @@ function EVENT:ApplyRewards(winner)
         end
     end
 
+    for _, ply in ipairs(player.GetAll()) do
+        ply:ChatPrint(winner:Nick() .. " wins the Poker hand and gained " .. runningHealth .. " health from all the schmucks who lost!")
+    end
+
     winner:SetMaxHealth(winner:GetMaxHealth() + runningHealth)
     winner:SetHealth(winner:Health() + runningHealth)
 end
 
 -- Called when an event is stopped. Used to do manual cleanup of processes started in the event.
 function EVENT:End()
+    -- ErrorNoHaltWithStack("Event End called")
     self.Started = false
     self.AcceptingDiscards = false
     self.HaveDiscarded = false
+    self.Running = false
     self.Players = {}
     self.Deck = {}
     self.PlayerBets = {}
@@ -710,6 +759,16 @@ end
 function EVENT:GetConVars()
 end
 
+function EVENT:RemovePlayer(ply)
+    table.remove(self.Players, table.KeyFromValue(self.Players, ply) or 0)
+    self.PlayerBets[ply] = nil
+
+    if #self.Players < self.MinPlayers then
+        self:End()
+        -- TODO leave comment stating too few players are alive+playing to continue the round of poker
+    end
+end
+
 --// Net Receives
 
 local function AllPlayersReady(playerTable)
@@ -722,23 +781,23 @@ local function AllPlayersReady(playerTable)
     return true
 end
 
--- TODO Logic should get shifted into an EVENT:function
 net.Receive("StartPokerRandomatCallback", function(len, ply)
-    print("net message received: StartPokerRandomatCallback")
     if not EVENT.Started then return end
 
     if not timer.Exists("PokerStartTimeout") then
-        timer.Create("PokerStartTimeout", 5, 1, function() -- TODO Turn the 5 into a ConVar
-            -- For each player in the player table that hasn't been verified, drop them from game
-            -- Then, resend new list of players
-            -- Then, start game
+        timer.Create("PokerStartTimeout", 5, 1, function() -- TODO Turn the 5 into a ConVar - TODO need to check if we haven't already started the game before running this
+            if EVENT.Running then return end
+
+            for index, unreadyPly in ipairs(EVENT.Players) do
+                if not unreadyPly.Ready then
+                    EVENT:RemovePlayer(unreadyPly)
+                end
+            end
+
+            EVENT:StartGame()
         end)
     end
 
-    -- TODO check if player we're receiving is supposed to be play the game
-    -- if EVENT.Players[ply] then
-    --     EVENT.Players[ply].Ready = true
-    -- end
     ply.Ready = true
 
     if AllPlayersReady(EVENT.Players) then
@@ -774,49 +833,24 @@ end)
 --// Hooks
 
 hook.Add("PlayerDisconnected", "Alter Poker Randomat If Player Leaves", function(ply)
-    if EVENT.Started and EVENT.Players[ply] then
+    if EVENT.Started and table.HasValue(EVENT.Players, ply) then
         EVENT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
-        -- MAY need to remove player from Players table
-        -- MAY need to add functionality to check if game should end on too low player count
+        EVENT:RemovePlayer(ply)
     end
 end)
 
 hook.Add("PlayerDeath", "Player Death Folds In Poker", function(ply)
-    if EVENT.Started and EVENT.Players[ply] then
+    if EVENT.Started and table.HasValue(EVENT.Players, ply) then
         EVENT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
+        EVENT:RemovePlayer(ply)
     end
 end)
 
 hook.Add("PlayerSilentDeath", "Silent Player Death Folds In Poker", function(ply)
-    if EVENT.Started and EVENT.Players[ply] then
+    if EVENT.Started and table.HasValue(EVENT.Players, ply) then
         EVENT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
+        EVENT:RemovePlayer(ply)
     end
 end)
 
 Randomat:register(EVENT)
-
---[[
-    Breakdown of all networking calls
-    - StartPokerRandomat sv -> cl, sets up game (sends the list of all the players)
-    - StartPokerRandomatCallback cl -> sv, verifies all clients ready, sent after all screen components are drawn on client (if a client times out, remove them from the game)
-        - If player is removed, re-send list of players in new net message
-    - NotifyBlinds sv -> cl, notifies all players who the blinds are
-    - DealCards sv -> cl, notifies the players of the 5 cards they've been dealt
-    - StartBetting(x) sv -> cl, notifies all players it's x player's turn to bet
-        - Continue repeatedly until all players fold/match the last raise
-    - MakeBet(x) cl -> sv, notifies server if x player is checking, matching, raising, or folding (if player timeout, default check if available, fold otherwise)
-        - If everyone folds except big blind, game ends and they gain little blind's hp
-    - StartDiscard sv -> cl, notifies players they can start discarding up to 3 cards, starts discard timer
-    - MakeDiscard(x) cl -> sv, notifies server of x player's discards
-    - Repeat DealCards to any remaining players
-    - Repeat StartBetting(x) to any remaining players
-    Calculate winner -
-    - RevealHands sv -> cl, reveals all hands still in at the end of the round to all player
-    - DeclareWinner sv -> cl, declares the winner
-    Misc calls -
-    - ClosePokerWindow sv -> cl, forces closed the window
-    - Player Folds
-    - Player Checks
-    - Player Raises
-    - Player Calls
-]]
