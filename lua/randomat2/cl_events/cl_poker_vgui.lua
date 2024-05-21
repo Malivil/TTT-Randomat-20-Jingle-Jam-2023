@@ -486,10 +486,18 @@ function Controls:SetCurrentBet(amount)
     self:SetCurrentRaise(amount)
 end
 
+function Controls:GetCurrentBet()
+    return self.CurrentBet
+end
+
 function Controls:SetCurrentRaise(amount)
     self.CurrentRaise = amount
 
     self:ResetRaiseOptions(self.CurrentRaise)
+end
+
+function Controls:GetCurrentRaise()
+    return self.CurrentRaise
 end
 
 function Controls:Setup()
@@ -560,7 +568,7 @@ function Controls:Setup()
     end
 
     -- I'm *not* making this a custom component because this is used only here and I'm sick of working on custom vgui elements
-    -- Most of this is ripped from the specific component's github page and then changed with styling to match everything else
+    -- Most of this is ripped from the specific component's github page and then styled to match everything else
     self.RaiseOpt = vgui.Create("DComboBox", self)
     self.RaiseOpt:SetPos(margin * 4 + buttonWidth * 4 + 2, self:GetTall() - buttonHeight - margin)
     self.RaiseOpt:SetSize(buttonWidth, buttonHeight)
@@ -569,7 +577,7 @@ function Controls:Setup()
     self.RaiseOpt:SetEnabled(false)
     self.RaiseOpt.OnSelect = function(raiseOptSelf, index, value, data)
     end
-    -- Just minimize this function and pretend it's all a bad dream
+    -- Just close your eyes and pretend it's all a bad dream, that's how I get by
     self.RaiseOpt.OpenMenu = function(pnl)
         pnl:CloseMenu()
         local parent = pnl
@@ -679,7 +687,7 @@ function Controls:ResetRaiseOptions(baselineBet)
     baselineBet = baselineBet or 0
 
     if baselineBet <= Bets.HALF then
-        self.RaiseOpt:AddChoice("3/4", Bets.THREEQ)
+        self.RaiseOpt:AddChoice(BetToString(Bets.THREEQ), Bets.THREEQ)
     end
 
     if baselineBet <= Bets.THREEQ then
@@ -688,6 +696,7 @@ function Controls:ResetRaiseOptions(baselineBet)
 
     if baselineBet >= Bets.ALL then
         self.Raise:SetEnabled(false)
+        self.RaiseRaiseOpt:SetEnabled(false)
         self.RaiseOpt:SetValue("NONE")
     end
 end
@@ -774,6 +783,7 @@ Main.BackgroundMat = Material("vgui/ttt/randomats/poker/poker_table.jpg")
 Main.DisplayMessageTime = 0
 Main.TimeRemaining = 0
 Main.DisplayTemporaryMessage = false
+Main.DisplayPermanentMessage = false
 Main.Folded = false
 
 function Main:Init()
@@ -782,14 +792,22 @@ function Main:Init()
 end
 
 function Main:TemporaryMessage(message, optionalTime)
-    self.DisplayMessageTime = CurTime() + (optionalTime or 5) -- TODO turn into convar
+    if self.DisplayPermanentMessage then return end
+
+    local cutoff = CurTime() + (optionalTime or 5) -- TODO turn into convar
+
+    -- if self.DisplayMessageTime < cutoff and lowPriority and not self.DisplayMessageTime then
+    --     return
+    -- end
+
+    self.DisplayMessageTime = cutoff
     self.DisplayTemporaryMessage = true
     self.DisplayMessage = message
 end
 
 function Main:PermanentMessage(message)
     self.DisplayMessageTime = 0
-    self.DisplayTemporaryMessage = true
+    self.DisplayPermanentMessage = true
     self.DisplayMessage = message
 end
 
@@ -818,16 +836,13 @@ function Main:SetTimer(time)
     if not timer.Exists("PokerMainTimer") then
         timer.Create("PokerMainTimer", 1, 0, function()
             if not self or not IsValid(self) then
-                self.ShowTimer = false
                 timer.Remove("PokerMainTimer")
-
                 return
             end
 
             if self.TimeRemaining == 0 or self.TimeRemaining == nil then
                 self.ShowTimer = false
                 timer.Remove("PokerMainTimer")
-
                 return
             end
 
@@ -866,7 +881,7 @@ function Main:PaintOver()
             draw.SimpleText("Time Remaining: " .. self.TimeRemaining, self.Font, self:GetWide() * 0.5, 1, Color(255, 255, 255), TEXT_ALIGN_CENTER, TEXT_ALIGN_TOP)
         end
         
-        if self.DisplayTemporaryMessage then
+        if self.DisplayTemporaryMessage or self.DisplayPermanentMessage then
             surface.SetDrawColor(0, 0, 0, 240)
             surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
 

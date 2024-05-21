@@ -44,7 +44,8 @@ Cards = {
     TEN = 10,
     JACK = 11,
     QUEEN = 12,
-    KING = 13
+    KING = 13,
+    ACE_HIGH = 14
 }
 
 Suits = {
@@ -129,7 +130,7 @@ function BetToString(bet)
     elseif bet == Bets.HALF then
         return "HALF"
     elseif bet == Bets.THREEQ then
-        return "THREE QUARTERS"
+        return "3/4"
     elseif bet == Bets.ALL then
         return "ALL"
     else

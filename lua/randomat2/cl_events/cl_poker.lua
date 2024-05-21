@@ -115,7 +115,11 @@ function EVENT:SetupHand(newHand, isSecondDeal)
     self.PokerHand:SetHand(newHand)
 
     if isSecondDeal then
-        self.PokerMain:TemporaryMessage("Your new cards:\n" .. newCards)
+        if newCards ~= "" then
+            self.PokerMain:TemporaryMessage("Your new cards:\n" .. newCards)
+        else
+            self.PokerMain:TemporaryMessage("No new cards given")
+        end
     end
 end
 
@@ -129,6 +133,7 @@ function EVENT:StartBetting(ply, timeToBet)
     end
 
     self.PokerPlayers:SetPlayerAsBetting(ply)
+    self.PokerHand:SetCanDiscard(false)
 end
 
 function EVENT:RegisterBet(ply, betType, betAmount)
@@ -139,7 +144,7 @@ function EVENT:RegisterBet(ply, betType, betAmount)
             self.PokerControls:SetCurrentBet(betAmount or self.PokerControls.CurrentRaise)
         end
     else
-        self.PokerPlayers:SetPlayerBet(ply, betType, betAmount)
+        self.PokerPlayers:SetPlayerBet(ply, betType, betAmount or self.PokerControls:GetCurrentRaise())
 
         if betType == BettingStatus.RAISE and self.PokerControls and self.PokerControls:IsValid() and betAmount then
             self.PokerControls:SetCurrentRaise(betAmount)
@@ -172,7 +177,7 @@ function EVENT:RegisterWinner(winner, hand)
         if winner == LocalPlayer() then
             self.PokerMain:PermanentMessage("You win! Getting your bonus health now!")
         else
-            self.PokerMain:PermanentMessage(winner:Nick() .. " wins with " .. hand .. "!")
+            self.PokerMain:PermanentMessage(winner:Nick() .. " wins the hand with a\n" .. hand .. "!")
         end
     else
         self.PokerMain:PermanentMessage("Game over. No winning player!\nAt least two players must remain alive to play!")
@@ -277,7 +282,7 @@ net.Receive("PlayerCalled", function()
 
     local callingPlayer = net.ReadEntity()
 
-    EVENT:RegisterBet(callingPlayer, BettingStatus.CALL)
+    EVENT:RegisterBet(callingPlayer, BettingStatus.CALL, call)
 end)
 
 net.Receive("PlayerRaised", function()
@@ -326,3 +331,30 @@ net.Receive("ClosePokerWindow", function()
 
     EVENT:ClosePanel()
 end)
+
+--[[
+    Bug Notes:
+    - When other player called my raise, did not see updated amount in their char box
+        TO TEST - Function was set up assuming value would be passed in from client when val is already known
+    - Game 1, lost to high card when I had an ace
+        FIXED - ace as high card was still comparing as '1', changed to new val '14'
+    - After I discarded, it immediately skipped Nicks' discard
+        TO TEST - 'HasDiscarded' property wasn't being reset after round end
+    - Initial call skipped over all betting
+        TO TEST - 'Status' property wasn't being reset after round end
+    - Raise button after an all-in should be disabled
+        TO TEST
+    - I bet all my health, lost, and didn't die
+        FURTHER DEBUGGING
+    - If a player dies/discards while in discard phase, it overrides the discarding messages
+        TO TEST
+    - Misc bug screenshot
+        FIXED - "self" being used in an if-block looking for invalid "self"
+    - Mal bug at video timemark 17:30
+        FIXED - Permanent messages were being overridden by temporary messages
+
+    Feature Improvements:
+    - Notify amount of cards discard
+    - Display the cards in winning hand
+    - If everyone goes all-in on initial round, it should go to round end after discard
+]]
