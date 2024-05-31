@@ -1,8 +1,11 @@
 --// Logan Christianson
 
 util.AddNetworkString("StartPokerRandomat")
+util.AddNetworkString("StartPokerVariantRandomat")
 util.AddNetworkString("StartPokerRandomatCallback")
+util.AddNetworkString("StartPokerVariantRandomatCallback")
 util.AddNetworkString("BeginPokerRandomat")
+util.AddNetworkString("BeginPokerVariantRandomat")
 util.AddNetworkString("NotifyBlinds")
 util.AddNetworkString("DealCards")
 util.AddNetworkString("StartBetting")
@@ -22,6 +25,7 @@ util.AddNetworkString("ClosePokerWindow")
 --// EVENT Properties
 
 local EVENT = {}
+local EVENT_VARIANT = {}
 
 EVENT.Title = "A Round Of Yogscast Poker"
 EVENT.Description = "Only if the 9 of Diamonds touch!"
@@ -34,7 +38,6 @@ EVENT.Categories = {"gamemode", "largeimpact", "fun"}
 --// My properties
 
 EVENT.MaxPlayers = 7
-EVENT.MinPlayers = 2
 EVENT.Started = false
 EVENT.Running = false
 EVENT.Players = {}
@@ -407,7 +410,7 @@ end
 
 function EVENT:EndBetting()
     timer.Simple(5, function()
-        local epr = EnoughPlayersRemaining() -- Needs to be ran BEFORE changing player's Status prop
+        local epr = EnoughPlayersRemaining() -- This function needs to be ran BEFORE changing player's Status prop
 
         for _, ply in ipairs(self.Players) do
             if ply.Status ~= BettingStatus.FOLD then
@@ -421,6 +424,16 @@ function EVENT:EndBetting()
             self:BeginDiscarding()
         end
     end)
+end
+
+function EVENT:BeginSecoundRoundBetting()
+    if not self.Started then self:End() return end
+
+    if AllPlayersMatchingBets() and GetHighestBet() == Bets.ALL then
+        self:CalculateWinner()
+    else
+        self:BeginBetting()
+    end
 end
 
 function EVENT:BeginDiscarding()
@@ -437,7 +450,7 @@ function EVENT:BeginDiscarding()
         self:DealDeck(true)
 
         timer.Simple(5, function()
-            self:BeginBetting()
+            self:BeginSecoundRoundBetting()
         end)
     end)
 end
@@ -481,7 +494,7 @@ function EVENT:RegisterPlayerDiscard(ply, discardsTable)
         self:DealDeck(true)
 
         timer.Simple(5, function()
-            self:BeginBetting()
+            self:BeginSecoundRoundBetting()
         end)
     end
 end
@@ -731,12 +744,14 @@ function EVENT:ApplyRewards(winner, winningHand)
             local betPercent = bet * 0.25
             local health = ply:Health()
             local healthToLose = math.Round(health * betPercent)
-
+            print("\t", bet, betPercent, health, healthToLose)
             runningHealth = runningHealth + healthToLose
 
             if bet == Bets.ALL then
+                print("\tkilling player...")
                 ply:Kill()
             else
+                print("reducing health of player...")
                 ply:SetHealth(math.max(1, ply:Health() - healthToLose))
                 ply:SetMaxHealth(math.max(1, ply:GetMaxHealth() - healthToLose))
             end
@@ -744,7 +759,13 @@ function EVENT:ApplyRewards(winner, winningHand)
     end
 
     for _, ply in ipairs(player.GetAll()) do
+        local cards = ""
+        for _, card in ipairs(ply.Cards) do
+            cards = cards .. "- " .. CardRankToName(card.rank) .. " of " .. CardSuitToName(card.suit) .. "\n"
+        end
+
         ply:ChatPrint(winner:Nick() .. " wins the Poker hand with a " .. winningHand .. " and gained " .. runningHealth .. " health from all the schmucks who lost!")
+        ply:ChatPrint("They had:\n" .. cards)
     end
 
     winner:SetMaxHealth(winner:GetMaxHealth() + runningHealth)
@@ -799,75 +820,174 @@ local function AllPlayersReady(playerTable)
 end
 
 net.Receive("StartPokerRandomatCallback", function(len, ply)
-    if not EVENT.Started then return end
+    if EVENT.Started then
+        if not timer.Exists("PokerStartTimeout") then
+            timer.Create("PokerStartTimeout", 5, 1, function() -- TODO Turn the 5 into a ConVar - TODO need to check if we haven't already started the game before running this
+                if EVENT.Running then return end
 
-    if not timer.Exists("PokerStartTimeout") then
-        timer.Create("PokerStartTimeout", 5, 1, function() -- TODO Turn the 5 into a ConVar - TODO need to check if we haven't already started the game before running this
-            if EVENT.Running then return end
-
-            for index, unreadyPly in ipairs(EVENT.Players) do
-                if not unreadyPly.Ready then
-                    EVENT:RemovePlayer(unreadyPly)
+                for index, unreadyPly in ipairs(EVENT.Players) do
+                    if not unreadyPly.Ready then
+                        EVENT:RemovePlayer(unreadyPly)
+                    end
                 end
-            end
 
+                EVENT:StartGame()
+            end)
+        end
+
+        ply.Ready = true
+
+        if AllPlayersReady(EVENT.Players) then
             EVENT:StartGame()
-        end)
-    end
+        end
+    elseif EVENT_VARIANT.Started then
+        if not timer.Exists("PokerStartTimeout") then
+            timer.Create("PokerStartTimeout", 5, 1, function() -- TODO Turn the 5 into a ConVar - TODO need to check if we haven't already started the game before running this
+                if EVENT_VARIANT.Running then return end
 
-    ply.Ready = true
+                for index, unreadyPly in ipairs(EVENT_VARIANT.Players) do
+                    if not unreadyPly.Ready then
+                        EVENT_VARIANT:RemovePlayer(unreadyPly)
+                    end
+                end
 
-    if AllPlayersReady(EVENT.Players) then
-        EVENT:StartGame()
+                EVENT_VARIANT:StartGame()
+            end)
+        end
+
+        ply.Ready = true
+
+        if AllPlayersReady(EVENT_VARIANT.Players) then
+            EVENT_VARIANT:StartGame()
+        end
     end
 end)
 
 net.Receive("MakeBet", function(len, ply)
-    if not EVENT.Started then return end
-    print("MakeBet received", ply)
-    local bet = net.ReadUInt(3)
-    local betAmt = net.ReadUInt(3)
-    print("\t", bet, betAmt)
-    EVENT:RegisterPlayerBet(ply, bet, betAmt)
+    if EVENT.Started then
+        print("MakeBet received", ply)
+        local bet = net.ReadUInt(3)
+        local betAmt = net.ReadUInt(3)
+        print("\t", bet, betAmt)
+        EVENT:RegisterPlayerBet(ply, bet, betAmt)
+    elseif EVENT_VARIANT.Started then
+        local bet = net.ReadUInt(3)
+        local betAmt = net.ReadUInt(3)
+        
+        EVENT_VARIANT:RegisterPlayerBet(ply, bet, betAmt)
+    end
 end)
 
 net.Receive("MakeDiscard", function(len, ply)
-    if not EVENT.Started or not EVENT.AcceptingDiscards then return end
+    if EVENT.Started then
+        if not EVENT.AcceptingDiscards then return end
 
-    local cardsBeingDiscarded = {}
-    local numCards = net.ReadUInt(2)
+        local cardsBeingDiscarded = {}
+        local numCards = net.ReadUInt(2)
 
-    for i = 1, numCards do
-        table.insert(cardsBeingDiscarded, {
-            rank = net.ReadUInt(5),
-            suit = net.ReadUInt(3)
-        })
+        for i = 1, numCards do
+            table.insert(cardsBeingDiscarded, {
+                rank = net.ReadUInt(5),
+                suit = net.ReadUInt(3)
+            })
+        end
+
+        EVENT:RegisterPlayerDiscard(ply, cardsBeingDiscarded)
+    elseif EVENT_VARIANT.Started then
+        if not EVENT_VARIANT.AcceptingDiscards then return end
+
+        local cardsBeingDiscarded = {}
+        local numCards = net.ReadUInt(2)
+
+        for i = 1, numCards do
+            table.insert(cardsBeingDiscarded, {
+                rank = net.ReadUInt(5),
+                suit = net.ReadUInt(3)
+            })
+        end
+
+        EVENT_VARIANT:RegisterPlayerDiscard(ply, cardsBeingDiscarded)
     end
-
-    EVENT:RegisterPlayerDiscard(ply, cardsBeingDiscarded)
 end)
 
 --// Hooks
 
 hook.Add("PlayerDisconnected", "Alter Poker Randomat If Player Leaves", function(ply)
-    if EVENT.Started and table.HasValue(EVENT.Players, ply) then
-        EVENT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
-        EVENT:RemovePlayer(ply)
+    if EVENT.Started then
+        if table.HasValue(EVENT.Players, ply) then
+            EVENT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
+            EVENT:RemovePlayer(ply)
+        end
+    elseif EVENT_VARIANT.Started then
+        if table.HasValue(EVENT_VARIANT.Players, ply) then
+            EVENT_VARIANT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
+            EVENT_VARIANT:RemovePlayer(ply)
+        end
     end
 end)
 
 hook.Add("PlayerDeath", "Player Death Folds In Poker", function(ply)
-    if EVENT.Started and table.HasValue(EVENT.Players, ply) then
-        EVENT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
-        EVENT:RemovePlayer(ply)
+    if EVENT.Started then
+        if table.HasValue(EVENT.Players, ply) then
+            EVENT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
+            EVENT:RemovePlayer(ply)
+        end
+    elseif EVENT_VARIANT.Started then
+        if table.HasValue(EVENT_VARIANT.Players, ply) then
+            EVENT_VARIANT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
+            EVENT_VARIANT:RemovePlayer(ply)
+        end
     end
 end)
 
 hook.Add("PlayerSilentDeath", "Silent Player Death Folds In Poker", function(ply)
-    if EVENT.Started and table.HasValue(EVENT.Players, ply) then
-        EVENT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
-        EVENT:RemovePlayer(ply)
+    if EVENT.Started then
+        if table.HasValue(EVENT.Players, ply) then
+            EVENT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
+            EVENT:RemovePlayer(ply)
+        end
+    elseif EVENT_VARIANT.Started then
+        if table.HasValue(EVENT_VARIANT.Players, ply) then
+            EVENT_VARIANT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
+            EVENT_VARIANT:RemovePlayer(ply)
+        end
     end
 end)
 
 Randomat:register(EVENT)
+
+--// WOMEN ARE COLLUDING VARIANT
+
+EVENT_VARIANT = table.Copy(EVENT)
+EVENT_VARIANT.Title = "A Round Of Yogscast Colluding Poker"
+EVENT_VARIANT.Description = "The women are colluding!"
+EVENT_VARIANT.ExtDescription = "A round of Yogscast Poker, but the women are colluding."
+EVENT_VARIANT.id = "poker_colluding"
+EVENT_VARIANT.MinPlayers = 3
+
+function EVENT_VARIANT:StartGame()
+    if not self.Started or EVENT.Started then self:End() return end
+
+    self:RefreshPlayers()
+    self.Running = true
+
+    local smallBlind = self.Players[1]
+    local bigBlind = self.Players[2]
+
+    self:RegisterPlayerBet(smallBlind, BettingStatus.RAISE, Bets.QUARTER, true)
+    self:RegisterPlayerBet(bigBlind, BettingStatus.RAISE, Bets.HALF, true)
+
+    net.Start("NotifyBlinds")
+        net.WriteEntity(smallBlind)
+        net.WriteEntity(bigBlind)
+    net.Broadcast()
+
+    self:GenerateDeck()
+    self:DealDeck()
+
+    timer.Simple(5, function()
+        self:BeginBetting(bigBlind.NextPlayer)
+    end)
+end
+
+Randomat:register(EVENT_VARIANT)

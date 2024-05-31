@@ -696,7 +696,7 @@ function Controls:ResetRaiseOptions(baselineBet)
 
     if baselineBet >= Bets.ALL then
         self.Raise:SetEnabled(false)
-        self.RaiseRaiseOpt:SetEnabled(false)
+        self.RaiseOpt:SetEnabled(false)
         self.RaiseOpt:SetValue("NONE")
     end
 end

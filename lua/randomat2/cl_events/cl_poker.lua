@@ -332,29 +332,63 @@ net.Receive("ClosePokerWindow", function()
     EVENT:ClosePanel()
 end)
 
+--// Variant Event
+
+net.Receive("StartPokerVariantRandomat", function()
+    EVENT.Self = LocalPlayer()
+
+    local numPlayers = net.ReadUInt(3)
+    for i = 1, numPlayers do
+        local ply = net.ReadEntity()
+
+        if ply == EVENT.Self then
+            net.Start("StartPokerVariantRandomatCallback")
+            net.SendToServer()
+
+            break
+        end
+    end
+    print("StartPokerVariantRandomat called")
+end)
+
+net.Receive("BeginPokerVariantRandomat", function()
+    local players = {}
+    local selfIsPlaying = false
+
+    local numPlayers = net.ReadUInt(3)
+    for i = 1, numPlayers do
+        local ply = net.ReadEntity()
+
+        table.insert(players, ply)
+
+        if ply == EVENT.Self then
+            selfIsPlaying = true
+        end
+    end
+
+    EVENT:RegisterPlayers(players, selfIsPlaying)
+    print("BeginPokerVariantRandomat called")
+end)
+
 --[[
     Bug Notes:
-    - When other player called my raise, did not see updated amount in their char box
-        TO TEST - Function was set up assuming value would be passed in from client when val is already known
-    - Game 1, lost to high card when I had an ace
-        FIXED - ace as high card was still comparing as '1', changed to new val '14'
-    - After I discarded, it immediately skipped Nicks' discard
-        TO TEST - 'HasDiscarded' property wasn't being reset after round end
-    - Initial call skipped over all betting
-        TO TEST - 'Status' property wasn't being reset after round end
     - Raise button after an all-in should be disabled
         TO TEST
     - I bet all my health, lost, and didn't die
-        FURTHER DEBUGGING
+        FURTHER DEBUGGING NECESSARY
     - If a player dies/discards while in discard phase, it overrides the discarding messages
         TO TEST
-    - Misc bug screenshot
-        FIXED - "self" being used in an if-block looking for invalid "self"
-    - Mal bug at video timemark 17:30
-        FIXED - Permanent messages were being overridden by temporary messages
 
     Feature Improvements:
-    - Notify amount of cards discard
-    - Display the cards in winning hand
     - If everyone goes all-in on initial round, it should go to round end after discard
+        TESTED - not working
+    - Need to finish variant mode
+
+    Test 2:
+    - Selected cards remain highlighted if discard window closes
+    - Server error, players not dying on all-in losing
+    - Skipped over my bet as little blind
+        - seems like little blind has their hand status set incorrectly?
+    - Was running into bet looping issues
+    - Folding seemed to trigger an infinite loop
 ]]
