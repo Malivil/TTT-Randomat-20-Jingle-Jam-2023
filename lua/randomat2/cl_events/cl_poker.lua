@@ -378,9 +378,16 @@ end)
 --[[
     Feature Improvements:
     - Need to finish variant mode
-    - Convar to disable 9 of diamonds gag (change name and hand-winning rules)
-    - Can it continue after the hand as completed? Increments of 25 don't make sense if it continues
-    - Convar to disable intro sounds
+    - Addition SFX on different round states
+    - Button to close window after Folded
+    - Scaling round timers - decrease with every 2nd new player
+    - Sepcial ConVars to add:
+        - "Continuous play" (enables repeating rounds)
+        - "Smaller bets" (changes bet increments from 25-50-75-100 to 10-20-...-100%)
+        - "Disable Yogscastification" (removes the 9 of diamonds wincon and the flavor sounds)
+        - "Disable audio effects" (client-only, disables playing of audio fx)
+        - Individual ConVars for specific round timers
+        - Anything else I missed I left a comment for
 
     Test 2:
     - Was running into bet looping issues

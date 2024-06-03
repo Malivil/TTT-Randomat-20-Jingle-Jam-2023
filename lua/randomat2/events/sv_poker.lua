@@ -814,9 +814,7 @@ function EVENT:ApplyRewards(winner, winningHand)
     winner:SetHealth(winner:Health() + runningHealth)
 end
 
--- Called when an event is stopped. Used to do manual cleanup of processes started in the event.
-function EVENT:End()
-    -- ErrorNoHaltWithStack("Event End called")
+function EVENT:ResetProperties()
     self.Started = false
     self.AcceptingDiscards = false
     self.HaveDiscarded = false
@@ -830,6 +828,11 @@ function EVENT:End()
         ply.HasDiscarded = false
         ply.Status = BettingStatus.NONE
     end
+end
+
+-- Called when an event is stopped. Used to do manual cleanup of processes started in the event.
+function EVENT:End()
+    self:ResetProperties()
 
     net.Start("ClosePokerWindow")
     net.Broadcast()
