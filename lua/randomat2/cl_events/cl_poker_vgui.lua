@@ -199,7 +199,7 @@ function OtherPlayers:SetPlayers(playersTable)
 
         local newPanel = vgui.Create("Poker_PlayerPanel", self)
         newPanel:SetPlayer(ply)
-        newPanel:SetSize(self:GetWide() * 0.33, self:GetTall() * 0.5)
+        newPanel:SetSize(self:GetWide() * 0.33 + 2, self:GetTall() * 0.5)
         newPanel:SetPos(newPanel:GetWide() * ((i - 1) % 3), newPanel:GetTall() * row2)
 
         if ply then
@@ -298,6 +298,10 @@ end
 
 function Card:SetCanSelectForDiscard(canDiscard)
     self.AvailableForDiscard = canDiscard
+
+    if not self.AvailableForDiscard then
+        self.SelectedForDiscard = false
+    end
 end
 
 function Card:SetBeingDiscarded(isDiscarded)
@@ -322,7 +326,7 @@ function Card:Paint()
     surface.DrawOutlinedRect(0, 0, self:GetWide(), self:GetTall(), 2)
 
     if self.Disabled then
-        surface.SetDrawColor(170, 170, 170, 150)
+        surface.SetDrawColor(170, 255, 170, 150)
         surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
     elseif self.AvailableForDiscard and self:IsHovered() then
         surface.SetDrawColor(180, 255, 180, 255)
@@ -464,7 +468,6 @@ end
 
 function Hand:Paint()
     surface.SetDrawColor(0, 0, 0)
-    surface.DrawOutlinedRect(1, 1, self:GetWide() - 2, self:GetTall() + 4, 2)
     surface.DrawRect(self:GetWide() * 0.5 - 45, 1, 90, 34)
 
     surface.SetFont(self.Font)
@@ -473,10 +476,16 @@ function Hand:Paint()
     surface.DrawText("Your Hand")
 end
 
+function Hand:PaintOver()
+    surface.SetDrawColor(0, 0, 0)
+    surface.DrawOutlinedRect(1, 1, self:GetWide() - 2, self:GetTall() - 1, 2)
+end
+
 vgui.Register("Poker_Hand", Hand, "DPanel")
 
 local Controls = table.Copy(LoganPanel)
 Controls.EnableTimer = false
+Controls.RaisingEnabled = true
 Controls.CurrentRaise = 2
 Controls.CurrentBet = 0
 
@@ -498,6 +507,12 @@ end
 
 function Controls:GetCurrentRaise()
     return self.CurrentRaise
+end
+
+function Controls:DisableRaising()
+    self.RaisingEnabled = false
+    self.Raise:SetEnabled(false)
+    self.RaiseOpt:SetEnabled(false)
 end
 
 function Controls:Setup()
@@ -709,8 +724,8 @@ function Controls:EnableBetting()
     end
 
     self.Fold:SetEnabled(true)
-    self.Raise:SetEnabled(true)
-    self.RaiseOpt:SetEnabled(true)
+    self.Raise:SetEnabled(self.RaisingEnabled and true)
+    self.RaiseOpt:SetEnabled(self.RaisingEnabled and true)
 end
 
 function Controls:DisableBetting()

@@ -90,7 +90,7 @@ end
 function EVENT:SetupHand(newHand, isSecondDeal)
     if not self.PokerHand or not self.PokerHand:IsValid() then
         self.PokerHand = vgui.Create("Poker_Hand", self.PokerMain)
-        self.PokerHand:SetPos(0, self.PokerPlayers:GetTall() + 100)
+        self.PokerHand:SetPos(0, self.PokerPlayers:GetTall() + self.PokerControls:GetTall() - 1)
         self.PokerHand:SetSize(self.PokerMain:GetWide(), 200)
     end
 
@@ -142,6 +142,7 @@ function EVENT:RegisterBet(ply, betType, betAmount)
             self.PokerMain:SetSelfFolded()
         elseif self.PokerControls and self.PokerControls:IsValid() then
             self.PokerControls:SetCurrentBet(betAmount or self.PokerControls.CurrentRaise)
+            self.PokerControls:DisableBetting()
         end
     else
         self.PokerPlayers:SetPlayerBet(ply, betType, betAmount or self.PokerControls:GetCurrentRaise())
@@ -149,6 +150,10 @@ function EVENT:RegisterBet(ply, betType, betAmount)
         if betType == BettingStatus.RAISE and self.PokerControls and self.PokerControls:IsValid() and betAmount then
             self.PokerControls:SetCurrentRaise(betAmount)
         end
+    end
+
+    if betAmount == Bets.ALL then
+        self.PokerControls:DisableRaising()
     end
 
     self.PokerMain:SetTimer(0)
@@ -371,24 +376,22 @@ net.Receive("BeginPokerVariantRandomat", function()
 end)
 
 --[[
-    Bug Notes:
-    - Raise button after an all-in should be disabled
-        TO TEST
-    - I bet all my health, lost, and didn't die
-        FURTHER DEBUGGING NECESSARY
-    - If a player dies/discards while in discard phase, it overrides the discarding messages
-        TO TEST
-
     Feature Improvements:
-    - If everyone goes all-in on initial round, it should go to round end after discard
-        TESTED - not working
     - Need to finish variant mode
+    - Convar to disable 9 of diamonds gag (change name and hand-winning rules)
+    - Can it continue after the hand as completed? Increments of 25 don't make sense if it continues
+    - Convar to disable intro sounds
 
     Test 2:
-    - Selected cards remain highlighted if discard window closes
-    - Server error, players not dying on all-in losing
-    - Skipped over my bet as little blind
-        - seems like little blind has their hand status set incorrectly?
     - Was running into bet looping issues
     - Folding seemed to trigger an infinite loop
+        - Unable to reproduce?
+
+    Test 3:
+    * To note, raising sets status to 4, all calls set status to 3 - is this causing issues?
+    - If player dies during discard phase, everything breaks (immediately jumps into betting phase instead of finishing out discard) BIG ISSUE
+        - TO TEST with 3+ players
+    - Non-blind player calling instantly ends the first round of betting BIG ISSUE
+        - Seems to break a lot of other functionality
+        - Does not trigger with bots??? TO TEST with 3+ players
 ]]
