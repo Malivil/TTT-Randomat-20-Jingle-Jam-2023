@@ -24,9 +24,11 @@ function EVENT:SetupPanel()
     self.PokerPlayers:SetSize(self.PokerMain:GetWide(), 200)
     self.PokerPlayers:SetPlayers(self.Players)
 
-    timer.Simple(1, function()
-        surface.PlaySound(EventSounds[math.random(#EventSounds)]) -- TODO make disableable with convar
-    end)
+    if ConVars.EnableYogsification:GetBool() and ConVars.EnableRoundStateAudioCues:GetBool() then
+        timer.Simple(1, function()
+            surface.PlaySound(EventSounds[math.random(#EventSounds)])
+        end)
+    end
 end
 
 function EVENT:ClosePanel()
@@ -76,8 +78,8 @@ function EVENT:AlertBlinds(bigBlind, littleBlind)
 
     self.PokerMain:TemporaryMessage(textToDisplay)
     self.PokerPlayers:SetBlinds(littleBlind, bigBlind)
-    self:RegisterBet(littleBlind, BettingStatus.RAISE, Bets.QUARTER)
-    self:RegisterBet(bigBlind, BettingStatus.RAISE, Bets.HALF)
+    self:RegisterBet(littleBlind, BettingStatus.RAISE, GetLittleBlindBet())
+    self:RegisterBet(bigBlind, BettingStatus.RAISE, GetBigBlindBet())
 end
 
 function EVENT:SetupControls()
@@ -152,7 +154,7 @@ function EVENT:RegisterBet(ply, betType, betAmount)
         end
     end
 
-    if betAmount == Bets.ALL then
+    if IsAllIn(betAmount)L then
         self.PokerControls:DisableRaising()
     end
 
@@ -263,7 +265,7 @@ net.Receive("StartBetting", function()
 
     local newBetter = net.ReadEntity()
 
-    EVENT:StartBetting(newBetter, 30) -- TODO make convar
+    EVENT:StartBetting(newBetter, GetDynamicRoundTimerValue("RoundStateBetting"))
 end)
 
 net.Receive("PlayerFolded", function()
@@ -294,7 +296,7 @@ net.Receive("PlayerRaised", function()
     if not EVENT.IsPlaying then return end
 
     local raisingPlayer = net.ReadEntity()
-    local raise = net.ReadUInt(3)
+    local raise = net.ReadUInt(4)
 
     EVENT:RegisterBet(raisingPlayer, BettingStatus.RAISE, raise)
 end)
@@ -308,7 +310,7 @@ end)
 net.Receive("StartDiscard", function()
     if not EVENT.IsPlaying then return end
 
-    EVENT:BeginDiscarding(30) -- TODO convar
+    EVENT:BeginDiscarding(GetDynamicRoundTimerValue("RoundStateDiscarding"))
 end)
 
 net.Receive("RevealHands", function()
@@ -378,15 +380,9 @@ end)
 --[[
     Feature Improvements:
     - Need to finish variant mode
-    - Addition SFX on different round states
+    - Addition SFX on different round states (Lewis request)
     - Button to close window after Folded
-    - Scaling round timers - decrease with every 2nd new player
-    - Sepcial ConVars to add:
-        - "Continuous play" (enables repeating rounds)
-        - "Smaller bets" (changes bet increments from 25-50-75-100 to 10-20-...-100%)
-        - "Disable Yogscastification" (removes the 9 of diamonds wincon and the flavor sounds)
-        - "Disable audio effects" (client-only, disables playing of audio fx)
-        - Individual ConVars for specific round timers
+    - Special ConVars to add:
         - Anything else I missed I left a comment for
 
     Test 2:

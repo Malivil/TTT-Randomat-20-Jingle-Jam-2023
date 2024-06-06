@@ -530,7 +530,7 @@ function Controls:Setup()
     self.Fold.CustomDoClick = function()
         net.Start("MakeBet")
             net.WriteUInt(BettingStatus.FOLD, 3)
-            net.WriteUInt(0, 3)
+            net.WriteUInt(0, 4)
         net.SendToServer()
 
         self:DisableBetting()
@@ -544,7 +544,7 @@ function Controls:Setup()
     self.Check.CustomDoClick = function()
         net.Start("MakeBet")
             net.WriteUInt(BettingStatus.CHECK, 3)
-            net.WriteUInt(self.CurrentBet, 3)
+            net.WriteUInt(self.CurrentBet, 4)
         net.SendToServer()
 
         self:DisableBetting()
@@ -558,7 +558,7 @@ function Controls:Setup()
     self.Call.CustomDoClick = function()
         net.Start("MakeBet")
             net.WriteUInt(BettingStatus.CALL, 3)
-            net.WriteUInt(self.CurrentRaise, 3)
+            net.WriteUInt(self.CurrentRaise, 4)
         net.SendToServer()
 
         self:DisableBetting()
@@ -575,7 +575,7 @@ function Controls:Setup()
         if val then
             net.Start("MakeBet")
                 net.WriteUInt(BettingStatus.RAISE, 3)
-                net.WriteUInt(val, 3)
+                net.WriteUInt(val, 4)
             net.SendToServer()
 
             self:DisableBetting()
@@ -700,20 +700,35 @@ function Controls:ResetRaiseOptions(baselineBet)
     self.RaiseOpt:SetValue("BET")
 
     baselineBet = baselineBet or 0
+    local betsTable = {}
 
-    if baselineBet <= Bets.HALF then
-        self.RaiseOpt:AddChoice(BetToString(Bets.THREEQ), Bets.THREEQ)
+    if Convars.EnableSmallerBets:GetBool() then
+        betsTable = Bets_Alt
+    else
+        betsTable = Bets
     end
 
-    if baselineBet <= Bets.THREEQ then
-        self.RaiseOpt:AddChoice(BetToString(Bets.ALL), Bets.ALL)
-    end
-
-    if baselineBet >= Bets.ALL then
+    if baselineBet >= betsTable.ALL then
         self.Raise:SetEnabled(false)
         self.RaiseOpt:SetEnabled(false)
         self.RaiseOpt:SetValue("NONE")
+
+        return
     end
+
+    for _, bet in ipairs(betsTable) do
+        if baselineBet < bet then
+            self.RaiseOpt:AddChoice(BetToString(bet), bet)
+        end
+    end
+
+    // if baselineBet <= Bets.HALF then
+    //     self.RaiseOpt:AddChoice(BetToString(Bets.THREEQ), Bets.THREEQ)
+    // end
+
+    // if baselineBet <= Bets.THREEQ then
+    //     self.RaiseOpt:AddChoice(BetToString(Bets.ALL), Bets.ALL)
+    // end
 end
 
 function Controls:EnableBetting()
@@ -809,7 +824,7 @@ end
 function Main:TemporaryMessage(message, optionalTime)
     if self.DisplayPermanentMessage then return end
 
-    local cutoff = CurTime() + (optionalTime or 5) -- TODO turn into convar
+    local cutoff = CurTime() + (optionalTime or GetDynamicRoundTimerValue("RoundStateMessage"))
 
     -- if self.DisplayMessageTime < cutoff and lowPriority and not self.DisplayMessageTime then
     --     return

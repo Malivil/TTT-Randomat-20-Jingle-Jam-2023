@@ -1,3 +1,43 @@
+ConVars = {}
+
+// if SERVER then
+    // CreateConVar("randomat_poker_", "", FCVAR_REPLICATED, "")
+    ConVars.ManualRoundStateTimes = CreateConVar("randomat_poker_manual_round_state_times", false, FCVAR_REPLICATED, "Enables use of the various 'RoundState*' ConVars")
+    ConVars.RoundStateStart = CreateConVar("randomat_poker_round_state_start", 5, FCVAR_REPLICATED, "Manually overrides how long clients have to repond to the initial game start", 1, 10)
+    ConVars.RoundStateBetting = CreateConVar("randomat_poker_round_state_betting", 30, FCVAR_REPLICATED, "Manually overrides how long the 'betting' phase of the round lasts", 1, 60)
+    ConVars.RoundStateDiscarding = CreatConVar("randomat_poker_round_state_discarding", 30, FCVAR_REPLICATED, "Manually overrides how long the 'discarding' phase of the round lasts", 1, 60)
+    ConVars.RoundStateMessage = CreateConVar("randomat_poker_round_state_message", 5, FCVAR_REPLICATED, "Manually overrides how long the round state messages should appear for", 1, 10)
+    ConVars.EnableYogsification = CreateConVar("randomat_poker_enable_yogsification", true, FCVAR_REPLICATED, "Enables the Yogscast gag/sfx")
+    ConVars.EnableRoundStateAudioCues = CreateConVar("randomat_poker_enable_audio_cues", true, FCVAR_REPLICATED, "Enables the round state audio cues")
+    ConVars.EnableContinuousPlay = CreateConVar("randomat_poker_enable_continuous_play", false, FCVAR_REPLICATED, "Enables continuous play, event repeats until TTT game ends")
+    ConVars.EnableSmallerBets = CreateConVar("randomat_poker_enable_smaller_bets", false, FCVAR_REPLICATED, "Enables smaller bet increments (default: 25-50-75-100, alt: 10-20-30-...-100)")
+// end
+
+DynamicTimerPlayerCount = 0
+function GetDynamicRoundTimerValue(conVar)
+    if ConVars.ManualRoundStateTimes:GetBool() then
+        return ConVars[conVar]:GetInt()
+        // return GetConVar(conVar):GetInt()
+    elseif {RoundStateMessage = true, RoundStateStart = true}[conVar] then
+        return 5
+    else
+        local window = 30
+
+        if DynamicTimerPlayerCount == 4 then
+            window = 25
+        elseif DynamicTimerPlayerCount == 5 then
+            window = 20
+        elseif DynamicTimerPlayerCount == 6 then
+            window = 15
+        elseif DynamicTimerPlayerCount >= 7 then
+            window = 10
+        end
+
+        return window
+    end
+end
+
+
 BettingStatus = {
     NONE = 0,
     FOLD = 1,
@@ -13,6 +53,20 @@ Bets = {
     HALF = 2,
     THREEQ = 3,
     ALL = 4
+}
+
+Bets_Alt = {
+    NONE = 0,
+    TEN = 1,
+    TWENTY = 2,
+    THIRTY = 3,
+    FOURTY = 4,
+    FIFTY = 5,
+    SIXTY = 6,
+    SEVENTY = 7,
+    EIGHTY = 8
+    NINETY = 9,
+    ALL = 10
 }
 
 Hands = {
@@ -122,7 +176,7 @@ function CardSuitToName(suit)
     end
 end
 
-function BetToString(bet)
+local function RegularBetToString(bet)
     if bet == Bets.NONE then
         return "NONE"
     elseif bet == Bets.QUARTER then
@@ -135,6 +189,24 @@ function BetToString(bet)
         return "ALL"
     else
         return ""
+    end
+end
+
+local function AltBetToString(bet)
+    if bet == Bets_Alt.NONE then
+        return "NONE"
+    elseif bet == Bets_Alt.ALL then
+        return "ALL"
+    else
+        return bet .. "0%"
+    end
+end
+
+function BetToString(bet)
+    if ConVars.EnableSmallerBets:GetBool() then
+        return AltBetToString(bet)
+    else
+        return RegularBetToString(bet)
     end
 end
 
@@ -153,5 +225,29 @@ function BetStatusToString(bettingStatus)
         return "ALL IN"
     else
         return ""
+    end
+end
+
+function GetLittleBlindBet()
+    if ConVars.EnableSmallerBets:GetBool() then
+        return Bets_Alt.TEN
+    else
+        return Bets.QUARTER
+    end
+end
+
+function GetBigBlindBet()
+    if ConVars.EnableSmallerBets:GetBool() then
+        return Bets_Alt.TWENTY
+    else
+        return Bets.HALF
+    end
+end
+
+function IsAllIn(bet)
+    if ConVars.EnableSmallerBets:GetBool() then
+        return bet == Bets_Alt.ALL
+    else
+        return bet == Bets.ALL
     end
 end
