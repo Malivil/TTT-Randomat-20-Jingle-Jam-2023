@@ -835,19 +835,24 @@ function EVENT:ApplyRewards(winner, winningHand)
     local runningHealth = 0
     for _, ply in pairs(self.Players) do
         // print("\tloop check: player:", ply, ply ~= winner)
-        if ply ~= winner then
+        if ply ~= winner and ply:Alive() then
             // print("\tLoop check, not winner, their bet:", self.PlayerBets[ply])
             local bet = self.PlayerBets[ply] or 0
             local healthToLose = math.Round(ply:Health() * BetAsPercent(bet))
             runningHealth = runningHealth + healthToLose
 
-            if IsAllIn(bet) then
-                print("\tkilling player...")
-                ply:Kill()
+            if bet > 0 then
+                if IsAllIn(bet) then
+                    -- print("\tkilling player...")
+                    ply:Kill()
+                else
+                    -- print("\treducing health of player...")
+                    ply:SetHealth(math.max(1, ply:Health() - healthToLose))
+                    ply:SetMaxHealth(math.max(1, ply:GetMaxHealth() - healthToLose))
+                end
             else
-                print("\treducing health of player...")
-                ply:SetHealth(math.max(1, ply:Health() - healthToLose))
-                ply:SetMaxHealth(math.max(1, ply:GetMaxHealth() - healthToLose))
+                -- Seems we somehow entered this at some point?
+                ErrorNoHalt("Detected invalid bet", ply, bet)
             end
         end
     end

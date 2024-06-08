@@ -840,6 +840,16 @@ end
 
 function Main:SetSelfFolded()
     self.Folded = true
+
+    self.CloseButton = vgui.Create("Control_Button", self)
+    self.CloseButton:SetSize(self:GetWide() * 0.5 - 65, 34)
+    self.CloseButton:SetPos(self:GetWide() * 0.5 - (self.CloseButton:GetWide() * 0.5), self:GetTall() * 0.6)
+    self.CloseButton:SetText("CLOSE")
+    self.CloseButton.CustomDoClick = function()
+        if EVENT then
+            EVENT:ClosePanel()
+        end
+    end
 end
 
 function Main:SetTimer(time)

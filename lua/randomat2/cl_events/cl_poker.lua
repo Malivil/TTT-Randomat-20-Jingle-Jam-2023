@@ -135,7 +135,8 @@ function EVENT:StartBetting(ply, timeToBet)
         self.PokerControls:EnableBetting()
 
         if ConVars.EnableRoundStateAudioCues:GetBool() then
-            surface.PlaySound("common/wpn_select.wav")
+            -- surface.PlaySound("common/wpn_select.wav")
+            surface.PlaySound("poker/chips.ogg")
         end
     else
         self.PokerMain:TemporaryMessage(ply:Nick() .."'s turn to bet!")
@@ -404,6 +405,7 @@ end)
     - Need to finish variant mode
     - Addition SFX on different round states (Lewis request)
     - Button to close window after Folded
+        TO TEST
     - Special ConVars to add:
         - Anything else I missed I left a comment for
 
