@@ -1,36 +1,28 @@
-ConVars = {}
-
-// if SERVER then
-    // CreateConVar("randomat_poker_", "", FCVAR_REPLICATED, "")
-    ConVars.ManualRoundStateTimes = CreateConVar("randomat_poker_manual_round_state_times", false, FCVAR_REPLICATED, "Enables use of the various 'RoundState*' ConVars")
-    ConVars.RoundStateStart = CreateConVar("randomat_poker_round_state_start", 5, FCVAR_REPLICATED, "Manually overrides how long clients have to repond to the initial game start", 1, 10)
-    ConVars.RoundStateBetting = CreateConVar("randomat_poker_round_state_betting", 30, FCVAR_REPLICATED, "Manually overrides how long the 'betting' phase of the round lasts", 1, 60)
-    ConVars.RoundStateDiscarding = CreatConVar("randomat_poker_round_state_discarding", 30, FCVAR_REPLICATED, "Manually overrides how long the 'discarding' phase of the round lasts", 1, 60)
-    ConVars.RoundStateMessage = CreateConVar("randomat_poker_round_state_message", 5, FCVAR_REPLICATED, "Manually overrides how long the round state messages should appear for", 1, 10)
-    ConVars.EnableYogsification = CreateConVar("randomat_poker_enable_yogsification", true, FCVAR_REPLICATED, "Enables the Yogscast gag/sfx")
-    ConVars.EnableRoundStateAudioCues = CreateConVar("randomat_poker_enable_audio_cues", true, FCVAR_REPLICATED, "Enables the round state audio cues")
-    ConVars.EnableContinuousPlay = CreateConVar("randomat_poker_enable_continuous_play", false, FCVAR_REPLICATED, "Enables continuous play, event repeats until TTT game ends")
-    ConVars.EnableSmallerBets = CreateConVar("randomat_poker_enable_smaller_bets", false, FCVAR_REPLICATED, "Enables smaller bet increments (default: 25-50-75-100, alt: 10-20-30-...-100)")
-// end
+ConVars = ConVars or {}
+// CreateConVar("randomat_poker_", "", FCVAR_REPLICATED, "")
+ConVars.ManualRoundStateTimes = ConVars.ManualRoundStateTimes or CreateConVar("randomat_poker_manual_round_state_times", "0", FCVAR_REPLICATED, "Enables use of the various 'RoundState*' ConVars")
+ConVars.RoundStateStart = ConVars.RoundStateStart or CreateConVar("randomat_poker_round_state_start", "5", FCVAR_REPLICATED, "Manually overrides how long clients have to repond to the initial game start", 1, 10)
+ConVars.RoundStateBetting = ConVars.RoundStateBetting or CreateConVar("randomat_poker_round_state_betting", "30", FCVAR_REPLICATED, "Manually overrides how long the 'betting' phase of the round lasts", 5, 60)
+ConVars.RoundStateDiscarding = ConVars.RoundStateDiscarding or CreateConVar("randomat_poker_round_state_discarding", "30", FCVAR_REPLICATED, "Manually overrides how long the 'discarding' phase of the round lasts", 5, 60)
+ConVars.RoundStateMessage = ConVars.RoundStateMessage or CreateConVar("randomat_poker_round_state_message", "5", FCVAR_REPLICATED, "Manually overrides how long the round state messages should appear for", 1, 10)
+ConVars.RoundStateEnd = ConVars.RoundStateEnd or CreateConVar("randomat_poker_round_state_end", "5", FCVAR_REPLICATED, "Manually overrides how long the game outcome message lasts for (as well as how long to wait"
+    .. " before starting a new round if continuous play is enabled)", 1, 60)
+ConVars.EnableYogsification = ConVars.EnableYogsification or CreateConVar("randomat_poker_enable_yogsification", "1", FCVAR_REPLICATED, "Enables the Yogscast gag/sfx") -- Working
+ConVars.EnableRoundStateAudioCues = ConVars.EnableRoundStateAudioCues or CreateConVar("randomat_poker_enable_audio_cues", "1", FCVAR_REPLICATED, "Enables the round state audio cues")
+ConVars.EnableContinuousPlay = ConVars.EnableContinuousPlay or CreateConVar("randomat_poker_enable_continuous_play", "0", FCVAR_REPLICATED, "Enables continuous play, event repeats until TTT game ends")
+ConVars.EnableSmallerBets = ConVars.EnableSmallerBets or CreateConVar("randomat_poker_enable_smaller_bets", "0", FCVAR_REPLICATED, "Enables smaller bet increments (default: 25-50-75-100, alt: 10-20-30-...-100)") -- Working
 
 DynamicTimerPlayerCount = 0
 function GetDynamicRoundTimerValue(conVar)
     if ConVars.ManualRoundStateTimes:GetBool() then
         return ConVars[conVar]:GetInt()
-        // return GetConVar(conVar):GetInt()
-    elseif {RoundStateMessage = true, RoundStateStart = true}[conVar] then
+    elseif ({RoundStateMessage = true, RoundStateStart = true, RoundStateEnd = true})[conVar] then
         return 5
     else
         local window = 30
 
-        if DynamicTimerPlayerCount == 4 then
-            window = 25
-        elseif DynamicTimerPlayerCount == 5 then
+        if DynamicTimerPlayerCount >= 5 then
             window = 20
-        elseif DynamicTimerPlayerCount == 6 then
-            window = 15
-        elseif DynamicTimerPlayerCount >= 7 then
-            window = 10
         end
 
         return window
@@ -64,7 +56,7 @@ Bets_Alt = {
     FIFTY = 5,
     SIXTY = 6,
     SEVENTY = 7,
-    EIGHTY = 8
+    EIGHTY = 8,
     NINETY = 9,
     ALL = 10
 }

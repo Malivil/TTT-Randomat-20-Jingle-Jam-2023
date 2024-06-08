@@ -11,8 +11,9 @@ EVENT.Players = {}
 EVENT.Hand = {}
 EVENT.IsPlaying = false
 EVENT.CurrentlyBetting = false
+EVENT.IsContinuedGame = false
 
-function EVENT:SetupPanel()
+function EVENT:SetupPanel(isContinuedGame)
     self.PanelActive = true
 
     self.PokerMain = vgui.Create("Poker_Frame", nil, "Poker Randomat Frame")
@@ -24,7 +25,7 @@ function EVENT:SetupPanel()
     self.PokerPlayers:SetSize(self.PokerMain:GetWide(), 200)
     self.PokerPlayers:SetPlayers(self.Players)
 
-    if ConVars.EnableYogsification:GetBool() and ConVars.EnableRoundStateAudioCues:GetBool() then
+    if ConVars.EnableYogsification:GetBool() and ConVars.EnableRoundStateAudioCues:GetBool() and not self.IsContinuedGame then
         timer.Simple(1, function()
             surface.PlaySound(EventSounds[math.random(#EventSounds)])
         end)
@@ -48,14 +49,16 @@ function EVENT:ClosePanel()
     self.Hand = {}
     self.IsPlaying = false
     self.CurrentlyBetting = false
+    self.IsContinuedGame = true
 end
 
-function EVENT:RegisterPlayers(newPlayersTbl, selfIsIncluded)
+function EVENT:RegisterPlayers(newPlayersTbl, selfIsIncluded, isContinuedGame)
+    -- local isContinuousPlay = #self.Players > 0
     self.IsPlaying = selfIsIncluded
     self.Players = newPlayersTbl
 
     if self.IsPlaying and not self.PanelActive then
-        self:SetupPanel()
+        self:SetupPanel(isContinuedGame)
     end
 end
 
@@ -130,6 +133,10 @@ function EVENT:StartBetting(ply, timeToBet)
         self.PokerMain:TemporaryMessage("Your turn to bet!")
         self.PokerMain:SetTimer(timeToBet)
         self.PokerControls:EnableBetting()
+
+        if ConVars.EnableRoundStateAudioCues:GetBool() then
+            surface.PlaySound("common/wpn_select.wav")
+        end
     else
         self.PokerMain:TemporaryMessage(ply:Nick() .."'s turn to bet!")
     end
@@ -154,7 +161,7 @@ function EVENT:RegisterBet(ply, betType, betAmount)
         end
     end
 
-    if IsAllIn(betAmount)L then
+    if IsAllIn(betAmount) then
         self.PokerControls:DisableRaising()
     end
 
@@ -171,6 +178,10 @@ function EVENT:BeginDiscarding(timeToDiscard)
     self.PokerMain:TemporaryMessage("Now, discard up to three cards!")
     self.PokerMain:SetTimer(timeToDiscard)
     self.PokerHand:SetCanDiscard(true)
+
+    if ConVars.EnableRoundStateAudioCues:GetBool() then
+        surface.PlaySound("poker/shuffle.ogg")
+    end
 end
 
 function EVENT:EndDiscard()
@@ -227,8 +238,14 @@ net.Receive("BeginPokerRandomat", function()
     end
 
     -- TODO probably sort the players table so the "first" in it is the player to the "left" of LocalPlayer
-    EVENT:RegisterPlayers(players, selfIsPlaying)
-    print("BeginPokerRandomat called")
+    if selfIsPlaying then
+        while players[1] ~= LocalPlayer() do
+            table.insert(players, table.remove(players, 1))
+        end
+    end
+
+    EVENT:RegisterPlayers(players, selfIsPlaying, isContinuedGame)
+    DynamicTimerPlayerCount = numPlayers
 end)
 
 net.Receive("NotifyBlinds", function()
@@ -337,6 +354,11 @@ net.Receive("ClosePokerWindow", function()
     if not EVENT.IsPlaying then return end
 
     EVENT:ClosePanel()
+
+    local continuousEnd = net.ReadBool()
+    if continuousEnd then
+        EVENT.IsContinuedGame = false
+    end
 end)
 
 --// Variant Event
@@ -397,4 +419,8 @@ end)
     - Non-blind player calling instantly ends the first round of betting BIG ISSUE
         - Seems to break a lot of other functionality
         - Does not trigger with bots??? TO TEST with 3+ players
+
+    Bugs:
+    - It's possible if all other players die to earn negative bonus health, which does reduce your health
+    - Two sets of two paris had the lower pair win
 ]]

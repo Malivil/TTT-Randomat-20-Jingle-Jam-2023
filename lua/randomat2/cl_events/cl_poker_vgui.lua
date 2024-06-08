@@ -70,7 +70,10 @@ function PlayerCard:SetFont(newfont)
 end
 
 function PlayerCard:SetPlayer(ply)
-    self.Player = ply
+    print("player card SetPlayer", ply, self.Player)
+    if ply then
+        self.Player = ply:Nick()
+    end
 
     self:CalculateNameSize()
 end
@@ -83,7 +86,7 @@ function PlayerCard:CalculateNameSize()
     surface.SetFont(self.Font)
 
     if self.Player then
-        self.NameWidth, self.NameHeight = surface.GetTextSize(self.Player:GetName()) -- TODO this will likely need to be cut off after enough characters
+        self.NameWidth, self.NameHeight = surface.GetTextSize(self.Player) -- TODO this will likely need to be cut off after enough characters
     else
         self.NameWidth, self.NameHeight = surface.GetTextSize(self.NoPlayerName)
     end
@@ -150,7 +153,7 @@ function PlayerCard:Paint()
     surface.SetFont(self.Font)
     surface.SetTextColor(255, 255, 255)
     surface.SetTextPos(self:GetWide() * 0.5 - (self.NameWidth * 0.5), 10)
-    surface.DrawText(self.Player:GetName())
+    surface.DrawText(self.Player)
     surface.SetDrawColor(255, 255, 255)
     surface.DrawLine(self:GetWide() * 0.5 - (self.NameWidth * 0.5), 10 + self.NameHeight, self:GetWide() * 0.5 + (self.NameWidth * 0.5), 10 + self.NameHeight)
 
@@ -637,6 +640,7 @@ function Controls:Setup()
 
                 surface.SetDrawColor(0, 0, 0)
                 surface.DrawLine(0, pnl:GetTall() - 1, pnl:GetWide(), pnl:GetTall() - 1)
+                surface.DrawOutlinedRect(0, 0, pnl:GetWide(), pnl:GetTall(), 1)
 
                 return true
             end
@@ -701,8 +705,8 @@ function Controls:ResetRaiseOptions(baselineBet)
 
     baselineBet = baselineBet or 0
     local betsTable = {}
-
-    if Convars.EnableSmallerBets:GetBool() then
+    
+    if ConVars.EnableSmallerBets:GetBool() then
         betsTable = Bets_Alt
     else
         betsTable = Bets
@@ -716,19 +720,12 @@ function Controls:ResetRaiseOptions(baselineBet)
         return
     end
 
-    for _, bet in ipairs(betsTable) do
-        if baselineBet < bet then
-            self.RaiseOpt:AddChoice(BetToString(bet), bet)
+    for _, bet in pairs(table.SortByKey(betsTable, true)) do
+        print("\tbetsTable", _, bet, baselineBet, BetToString(bet))
+        if baselineBet < betsTable[bet] then
+            self.RaiseOpt:AddChoice(BetToString(betsTable[bet]), betsTable[bet])
         end
     end
-
-    // if baselineBet <= Bets.HALF then
-    //     self.RaiseOpt:AddChoice(BetToString(Bets.THREEQ), Bets.THREEQ)
-    // end
-
-    // if baselineBet <= Bets.THREEQ then
-    //     self.RaiseOpt:AddChoice(BetToString(Bets.ALL), Bets.ALL)
-    // end
 end
 
 function Controls:EnableBetting()
@@ -874,6 +871,10 @@ function Main:SetTimer(time)
                 self.ShowTimer = false
                 timer.Remove("PokerMainTimer")
                 return
+            end
+
+            if self.TimeRemaining <= 5 and ConVars.EnableRoundStateAudioCues:GetBool() then
+                surface.PlaySound("weapons/grenade/tick1.wav")
             end
 
             self.TimeRemaining = self.TimeRemaining - 1

@@ -42,7 +42,7 @@ local EVENT_VARIANT = {}
 
 EVENT.Title = "A Round Of Yogscast Poker"
 EVENT.Description = "Only if the 9 of Diamonds touch!"
-EVENT.ExtDescription = "A round of 5-Card Draw Poker (no Texas Hold 'Em, for my sake), bet with your health. Up to 7 may play. Any pair, three, or four of a kind containing the 9 of Diamonds instantly wins."
+EVENT.ExtDescription = "A round of 5-Card Draw Poker (no Texas Hold 'Em, for my sake), bet with your\nhealth. Up to 7 may play. Any pair, three, or four of a kind containing the 9 of\nDiamonds instantly wins."
 EVENT.id = "poker"
 EVENT.MinPlayers = 2
 EVENT.Type = EVENT_TYPE_DEFAULT
@@ -70,19 +70,19 @@ function EVENT:GeneratePlayers()
     if ConVars.EnableContinuousPlay:GetBool() and #self.ContinuousPlayers > 0 then
         playersToPlay = table.Copy(self.ContinuousPlayers)
 
-        local disconnectedPlayers = {}
+        local playersToRemove = {}
         for _, ply in ipairs(playersToPlay) do
-            if !IsValid(ply) or !ply:IsValid() then
-                table.insert(disconnectedPlayers, ply)
+            if !IsValid(ply) or !ply:IsValid() or not ply:Alive() then
+                table.insert(playersToRemove, ply)
             end
         end
 
-        for _, ply in ipairs(disconnectedPlayers) do
+        for _, ply in ipairs(playersToRemove) do
             table.remove(playersToPlay, table.KeyFromValue(playersToPlay, ply or 0))
         end
 
-        for _, ply in ipairs(players.Getall()) do
-            if not IsValid(playersToPlay[ply]) then
+        for _, ply in ipairs(player.GetAll()) do
+            if not table.HasValue(playersToPlay, ply) then
                 table.insert(playersToPlay, ply)
             end
         end
@@ -132,6 +132,20 @@ function EVENT:Begin()
             net.WriteEntity(ply)
         end
     net.Broadcast()
+
+    -- if not timer.Exists("PokerStartTimeout") then
+    timer.Create("PokerStartTimeout", GetDynamicRoundTimerValue("RoundStateStart"), 1, function()
+        if EVENT.Running then return end
+
+        for index, unreadyPly in ipairs(EVENT.Players) do
+            if not unreadyPly.Ready then
+                EVENT:RemovePlayer(unreadyPly)
+            end
+        end
+
+        EVENT:StartGame()
+    end)
+    -- end
 end
 
 -- Called after all players responded to the initial net message and any who haven't are removed
@@ -155,9 +169,8 @@ function EVENT:StartGame()
     self:RefreshPlayers()
     self.Running = true
 
-    local gameDiff = ((self.NumberOfGames - 1) % #self.Players)
-    local smallBlind = self.Players[gameDiff + 1]
-    local bigBlind = self.Players[gameDiff + 2]
+    local smallBlind = self.Players[((self.NumberOfGames + 1) % #self.Players) + 1]
+    local bigBlind = self.Players[(self.NumberOfGames % #self.Players) + 1]
 
     self:RegisterPlayerBet(smallBlind, BettingStatus.RAISE, GetLittleBlindBet(), true)
     self:RegisterPlayerBet(bigBlind, BettingStatus.RAISE, GetBigBlindBet(), true)
@@ -396,6 +409,7 @@ end
 -- Called to register a player's bet (or lack thereof)
 function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
     if not self.Started then self:End() return end
+    if not ply:IsValid() then return end
     InfiniteLoopCheck("RegisterPlayerBet")
     print("Register player bet")
 
@@ -585,7 +599,7 @@ function EVENT:CalculateWinner()
         self:ApplyRewards(winner, hand)
     end
 
-    timer.Simple(GetDynamicRoundTimerValue("RoundStateMessage"), function()
+    timer.Simple(GetDynamicRoundTimerValue("RoundStateEnd"), function()
         if ConVars.EnableContinuousPlay:GetBool() then
             self:ContinuousPlay()
         else
@@ -869,7 +883,7 @@ function EVENT:ResetProperties()
 end
 
 function EVENT:ContinuousPlay()
-    self:End()
+    self:End(true)
     
     timer.Simple(0, function()
         self:Begin()
@@ -877,10 +891,12 @@ function EVENT:ContinuousPlay()
 end
 
 -- Called when an event is stopped. Used to do manual cleanup of processes started in the event.
-function EVENT:End()
+function EVENT:End(continuousEnd)
     self:ResetProperties()
+    self.ContinuousPlayers = {}
 
     net.Start("ClosePokerWindow")
+        net.WriteBool(continuousEnd or false)
     net.Broadcast()
 end
 
@@ -892,40 +908,54 @@ function EVENT:GetConVars()
 
     table.insert(sliders, {
         cmd = "round_state_start",
-        dsc = "Manually overrides how long clients have to repond to the initial game start",
+        dsc = "[DEV] Manual game start wait window duration",
         min = 1,
         max = 10
     })
     table.insert(sliders, {
         cmd = "round_state_betting",
-        dsc = "Manually overrides how long the 'betting' phase of the round lasts",
+        dsc = "Manual 'betting' phase duration",
         min = 1,
         max = 60
     })
     table.insert(sliders, {
         cmd = "round_state_discarding",
-        dsc = "Manually overrides how long the 'discarding' phase of the round lasts",
+        dsc = "Manual 'discarding' phase duration",
         min = 1,
         max = 60
     })
     table.insert(sliders, {
         cmd = "round_state_message",
-        dsc = "Manually overrides how long the round state messages should appear for",
+        dsc = "Manual state phrase message duration",
         min = 1,
         max = 10
     })
+    table.insert(sliders, {
+        cmd = "round_state_end",
+        dsc = "Manual post-game wait duration",
+        min = 1,
+        max = 60
+    })
 
-    table.insert(check, {
+    table.insert(checks, {
         cmd = "manual_round_state_times",
-        dsc = "Enables use of the various 'RoundState*' ConVars"
+        dsc = "Enable use of manual game phase lengths (the above duration sliders)"
     })
-    table.insert(check, {
+    table.insert(checks, {
+        cmd = "enable_continuous_play",
+        dsc = "Enable continuous play (event repeats until TTT game ends)"
+    })
+    table.insert(checks, {
+        cmd = "enable_smaller_bets",
+        dsc = "Changes bet increments from the default 25% to 10%"
+    })
+    table.insert(checks, {
         cmd = "enable_yogsification",
-        dsc = "Enables the Yogscast gag/sfx"
+        dsc = "Enable the Yogscast gag & sfx"
     })
-    table.insert(check, {
+    table.insert(checks, {
         cmd = "enable_audio_cues",
-        dsc = "Enables the round state audio cues"
+        dsc = "Enable the round state audio cues"
     })
 
     return sliders, checks, textboxes
@@ -957,22 +987,8 @@ local function AllPlayersReady(playerTable)
 end
 
 net.Receive("StartPokerRandomatCallback", function(len, ply)
-    if EVENT.Started then
+    if EVENT.Started and not EVENT.Running then
         -- TODO It's possible the client freezes for longer than 5 seconds and still tries to run this after it unfreezes, which could cause issues. Might need a new property to track this
-        if not timer.Exists("PokerStartTimeout") then
-            timer.Create("PokerStartTimeout", GetDynamicRoundTimerValue("RoundStateStart"), 1, function()
-                if EVENT.Running then return end
-
-                for index, unreadyPly in ipairs(EVENT.Players) do
-                    if not unreadyPly.Ready then
-                        EVENT:RemovePlayer(unreadyPly)
-                    end
-                end
-
-                EVENT:StartGame()
-            end)
-        end
-
         ply.Ready = true
 
         if AllPlayersReady(EVENT.Players) then
@@ -1097,29 +1113,29 @@ EVENT_VARIANT.ExtDescription = "A round of Yogscast Poker, but the women are col
 EVENT_VARIANT.id = "poker_colluding"
 EVENT_VARIANT.MinPlayers = 3
 
-function EVENT_VARIANT:StartGame()
-    if not self.Started or EVENT.Started then self:End() return end
+-- function EVENT_VARIANT:StartGame()
+--     if not self.Started or EVENT.Started then self:End() return end
 
-    self:RefreshPlayers()
-    self.Running = true
+--     self:RefreshPlayers()
+--     self.Running = true
 
-    local smallBlind = self.Players[1]
-    local bigBlind = self.Players[2]
+--     local smallBlind = self.Players[1]
+--     local bigBlind = self.Players[2]
 
-    self:RegisterPlayerBet(smallBlind, BettingStatus.RAISE, GetLittleBlindBet(), true)
-    self:RegisterPlayerBet(bigBlind, BettingStatus.RAISE, GetBigBlindBet(), true)
+--     self:RegisterPlayerBet(smallBlind, BettingStatus.RAISE, GetLittleBlindBet(), true)
+--     self:RegisterPlayerBet(bigBlind, BettingStatus.RAISE, GetBigBlindBet(), true)
 
-    net.Start("NotifyBlinds")
-        net.WriteEntity(smallBlind)
-        net.WriteEntity(bigBlind)
-    net.Broadcast()
+--     net.Start("NotifyBlinds")
+--         net.WriteEntity(smallBlind)
+--         net.WriteEntity(bigBlind)
+--     net.Broadcast()
 
-    self:GenerateDeck()
-    self:DealDeck()
+--     self:GenerateDeck()
+--     self:DealDeck()
 
-    timer.Simple(GetDynamicRoundTimerValue("RoundStateMessage"), function()
-        self:BeginBetting(bigBlind.NextPlayer)
-    end)
-end
+--     timer.Simple(GetDynamicRoundTimerValue("RoundStateMessage"), function()
+--         self:BeginBetting(bigBlind.NextPlayer)
+--     end)
+-- end
 
 Randomat:register(EVENT_VARIANT)
