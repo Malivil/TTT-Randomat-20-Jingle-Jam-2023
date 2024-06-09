@@ -169,11 +169,19 @@ function EVENT:StartGame()
     self:RefreshPlayers()
     self.Running = true
 
-    local smallBlind = self.Players[((self.NumberOfGames + 1) % #self.Players) + 1]
-    local bigBlind = self.Players[(self.NumberOfGames % #self.Players) + 1]
+    print("StartGame debug, players list:")
+    for k, v in pairs(self.Players) do
+        print("\t", k, v, v.NextPlayer)
+    end
+
+    local smallBlind = self.Players[(self.NumberOfGames % #self.Players) + 1]
+    local bigBlind = self.Players[((self.NumberOfGames + 1) % #self.Players) + 1]
+
+    print("Small blind:", smallBlind, "Big blind:", bigBlind)
 
     self:RegisterPlayerBet(smallBlind, BettingStatus.RAISE, GetLittleBlindBet(), true)
     self:RegisterPlayerBet(bigBlind, BettingStatus.RAISE, GetBigBlindBet(), true)
+    bigBlind.Status = BettingStatus.NONE
 
     net.Start("NotifyBlinds")
         net.WriteEntity(smallBlind)
@@ -600,7 +608,7 @@ function EVENT:CalculateWinner()
     end
 
     timer.Simple(GetDynamicRoundTimerValue("RoundStateEnd"), function()
-        if ConVars.EnableContinuousPlay:GetBool() then
+        if ConVars.EnableContinuousPlay:GetBool() and GetRoundState() == ROUND_ACTIVE then
             self:ContinuousPlay()
         else
             self:End()
@@ -914,32 +922,32 @@ function EVENT:GetConVars()
     table.insert(sliders, {
         cmd = "round_state_start",
         dsc = "[DEV] Manual game start wait window duration",
-        min = 1,
-        max = 10
+        min = ConVars.RoundStateStart:GetMin(),
+        max = ConVars.RoundStateStart:GetMax()
     })
     table.insert(sliders, {
         cmd = "round_state_betting",
         dsc = "Manual 'betting' phase duration",
-        min = 1,
-        max = 60
+        min = ConVars.RoundStateBetting:GetMin(),
+        max = ConVars.RoundStateBetting:GetMax()
     })
     table.insert(sliders, {
         cmd = "round_state_discarding",
         dsc = "Manual 'discarding' phase duration",
-        min = 1,
-        max = 60
+        min = ConVars.RoundStateDiscarding:GetMin(),
+        max = ConVars.RoundStateDiscarding:GetMax()
     })
     table.insert(sliders, {
         cmd = "round_state_message",
         dsc = "Manual state phrase message duration",
-        min = 1,
-        max = 10
+        min = ConVars.RoundStateMessage:GetMin(),
+        max = ConVars.RoundStateMessage:GetMax()
     })
     table.insert(sliders, {
         cmd = "round_state_end",
         dsc = "Manual post-game wait duration",
-        min = 1,
-        max = 60
+        min = ConVars.RoundStateEnd:GetMin(),
+        max = ConVars.RoundStateEnd:GetMax()
     })
 
     table.insert(checks, {

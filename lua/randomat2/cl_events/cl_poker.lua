@@ -11,7 +11,7 @@ EVENT.Players = {}
 EVENT.Hand = {}
 EVENT.IsPlaying = false
 EVENT.CurrentlyBetting = false
-EVENT.IsContinuedGame = false
+EVENT.ShouldPlayStartSound = true
 
 function EVENT:SetupPanel(isContinuedGame)
     self.PanelActive = true
@@ -25,10 +25,18 @@ function EVENT:SetupPanel(isContinuedGame)
     self.PokerPlayers:SetSize(self.PokerMain:GetWide(), 200)
     self.PokerPlayers:SetPlayers(self.Players)
 
-    if ConVars.EnableYogsification:GetBool() and ConVars.EnableRoundStateAudioCues:GetBool() and not self.IsContinuedGame then
-        timer.Simple(1, function()
-            surface.PlaySound(EventSounds[math.random(#EventSounds)])
-        end)
+    if ConVars.EnableRoundStateAudioCues:GetBool() then
+        if self.ShouldPlayStartSound then
+            if ConVars.EnableYogsification:GetBool() then
+                timer.Simple(1, function()
+                    surface.PlaySound(EventSounds[math.random(#EventSounds)])
+                end)
+            else
+                timer.Simple(1, function()
+                    surface.PlaySound("poker/shuffle.ogg")
+                end)
+            end
+        end
     end
 end
 
@@ -45,11 +53,21 @@ function EVENT:ClosePanel()
         self.PokerMain = nil
     end
 
+    if self.Close and self.Close:IsValid() then
+        for _, panel in ipairs(self.Close:GetChildren()) do
+            panel:Remove()
+            panel = nil
+        end
+
+        self.Close:Remove()
+        self.Close = nil
+    end
+
     self.Players = {}
     self.Hand = {}
     self.IsPlaying = false
     self.CurrentlyBetting = false
-    self.IsContinuedGame = true
+    self.ShouldPlayStartSound = false
 end
 
 function EVENT:RegisterPlayers(newPlayersTbl, selfIsIncluded, isContinuedGame)
@@ -66,7 +84,14 @@ function EVENT:AlertBlinds(bigBlind, littleBlind)
     local textToDisplay = ""
 
     if bigBlind == self.Self then
-        textToDisplay = "YOU ARE THE BIG BLIND!\nHalf of your HP has been\nadded to the pot automatically."
+        local amount = ""
+        if ConVars.EnableSmallerBets:GetBool() then
+            amount = "20%"
+        else
+            amount = "Half"
+        end
+
+        textToDisplay = "YOU ARE THE BIG BLIND!\n" .. amount .. " of your HP has been\nadded to the pot automatically."
     else
         textToDisplay = "The Big Blind is: " .. bigBlind:Nick()
     end
@@ -74,7 +99,14 @@ function EVENT:AlertBlinds(bigBlind, littleBlind)
     textToDisplay = textToDisplay .. "\n\n"
 
     if littleBlind == self.Self then
-        textToDisplay = textToDisplay .. "YOU ARE THE LITTLE BLIND!\nA quarter of your HP has been\nadded to the pot automatically."
+        local amount = ""
+        if ConVars.EnableSmallerBets:GetBool() then
+            amount = "10%"
+        else
+            amount = "A quarter"
+        end
+
+        textToDisplay = textToDisplay .. "YOU ARE THE LITTLE BLIND!\n" .. amount .. " of your HP has been\nadded to the pot automatically."
     else
         textToDisplay = textToDisplay .. "The Little Blind is: " .. littleBlind:Nick()
     end
@@ -150,10 +182,13 @@ function EVENT:RegisterBet(ply, betType, betAmount)
     if ply == LocalPlayer() then
         if betType == BettingStatus.FOLD then
             self.PokerMain:SetSelfFolded()
+            self:EnableClose()
         elseif self.PokerControls and self.PokerControls:IsValid() then
             self.PokerControls:SetCurrentBet(betAmount or self.PokerControls.CurrentRaise)
             self.PokerControls:DisableBetting()
         end
+    
+        self.PokerMain:SetTimer(0)
     else
         self.PokerPlayers:SetPlayerBet(ply, betType, betAmount or self.PokerControls:GetCurrentRaise())
 
@@ -165,8 +200,6 @@ function EVENT:RegisterBet(ply, betType, betAmount)
     if IsAllIn(betAmount) then
         self.PokerControls:DisableRaising()
     end
-
-    self.PokerMain:SetTimer(0)
 end
 
 function EVENT:EndBetting()
@@ -195,8 +228,16 @@ function EVENT:RegisterWinner(winner, hand)
     if winner then
         if winner == LocalPlayer() then
             self.PokerMain:PermanentMessage("You win! Getting your bonus health now!")
+
+            if ConVars.EnableYogsification:GetBool() then
+                surface.PlaySound("poker/you_won.ogg")
+            end
         else
             self.PokerMain:PermanentMessage(winner:Nick() .. " wins the hand with a\n" .. hand .. "!")
+
+            if ConVars.EnableYogsification:GetBool() then
+                surface.PlaySound("poker/robbed.ogg")
+            end
         end
     else
         self.PokerMain:PermanentMessage("Game over. No winning player!\nAt least two players must remain alive to play!")
@@ -204,6 +245,24 @@ function EVENT:RegisterWinner(winner, hand)
 
     self.PokerHand:SetCanDiscard(false)
     self.PokerControls:DisableBetting()
+end
+
+function EVENT:EnableClose()
+    self.Close = vgui.Create("DFrame", nil, "Poker Randomat Close Button")
+    self.Close:SetSize(70, 34) -- self:GetWide() * 0.5 - 65, 34
+    self.Close:SetPos(ScrW() - (self.PokerMain:GetWide() * 0.5) - (self.Close:GetWide() * 0.5), 200 + self.PokerMain:GetTall() + 4)
+    self.Close:ShowCloseButton(false)
+    self.Close:SetTitle("")
+
+    self.CloseButton = vgui.Create("Control_Button", self.Close)
+    self.CloseButton:SetPos(0, 0)
+    self.CloseButton:SetSize(self.Close:GetWide(), self.Close:GetTall())
+    self.CloseButton:SetText("CLOSE")
+    self.CloseButton.CustomDoClick = function()
+        if self then
+            self:ClosePanel()
+        end
+    end
 end
 
 net.Receive("StartPokerRandomat", function()
@@ -238,7 +297,6 @@ net.Receive("BeginPokerRandomat", function()
         end
     end
 
-    -- TODO probably sort the players table so the "first" in it is the player to the "left" of LocalPlayer
     if selfIsPlaying then
         while players[1] ~= LocalPlayer() do
             table.insert(players, table.remove(players, 1))
@@ -358,8 +416,12 @@ net.Receive("ClosePokerWindow", function()
 
     local continuousEnd = net.ReadBool()
     if continuousEnd then
-        EVENT.IsContinuedGame = false
+        EVENT.ShouldPlayStartSound = false
     end
+end)
+
+hook.Add("TTTEndRound", "Reset Poker Randomat Sound Play", function(result)
+    EVENT.ShouldPlayStartSound = true
 end)
 
 --// Variant Event
@@ -401,28 +463,17 @@ net.Receive("BeginPokerVariantRandomat", function()
 end)
 
 --[[
-    Feature Improvements:
-    - Need to finish variant mode
-    - Addition SFX on different round states (Lewis request)
-    - Button to close window after Folded
-        TO TEST
-    - Special ConVars to add:
-        - Anything else I missed I left a comment for
-
-    Test 2:
+    Legacy bugs:
     - Was running into bet looping issues
     - Folding seemed to trigger an infinite loop
         - Unable to reproduce?
-
-    Test 3:
-    * To note, raising sets status to 4, all calls set status to 3 - is this causing issues?
-    - If player dies during discard phase, everything breaks (immediately jumps into betting phase instead of finishing out discard) BIG ISSUE
-        - TO TEST with 3+ players
     - Non-blind player calling instantly ends the first round of betting BIG ISSUE
         - Seems to break a lot of other functionality
-        - Does not trigger with bots??? TO TEST with 3+ players
+
+    Feature Improvements:
+    - Need to finish variant mode
 
     Bugs:
     - It's possible if all other players die to earn negative bonus health, which does reduce your health
-    - Two sets of two paris had the lower pair win
+    - Two sets of two pairs had the lower pair win (winning hands seems to not be perfect)
 ]]

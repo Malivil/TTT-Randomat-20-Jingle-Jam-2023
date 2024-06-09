@@ -841,19 +841,19 @@ end
 function Main:SetSelfFolded()
     self.Folded = true
 
-    self.CloseButton = vgui.Create("Control_Button", self)
-    self.CloseButton:SetSize(self:GetWide() * 0.5 - 65, 34)
-    self.CloseButton:SetPos(self:GetWide() * 0.5 - (self.CloseButton:GetWide() * 0.5), self:GetTall() * 0.6)
-    self.CloseButton:SetText("CLOSE")
-    self.CloseButton.CustomDoClick = function()
-        if EVENT then
-            EVENT:ClosePanel()
-        end
+    self.FoldedPanel = vgui.Create("DPanel, self")
+    self.FoldedPanel:SetPos(0, 0)
+    self.FoldedPanel:SetSize(self:GetWide(), self:GetTall())
+    self.FoldednPanel.Paint = function()
+        surface.SetDrawColor(0, 0, 0, 240)
+        surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
+
+        draw.DrawText("Folded!", self.Font, self:GetWide() * 0.5, self:GetTall() * 0.5, Color(255, 255, 255), TEXT_ALIGN_CENTER)
     end
 end
 
 function Main:SetTimer(time)
-    if time == 0 then
+    if time == 0 or self.Folded then
         self.ShowTimer = false
         timer.Remove("PokerMainTimer")
         return
@@ -909,12 +909,7 @@ end
 function Main:PaintOver()
     draw.NoTexture()
 
-    if self.Folded then
-        surface.SetDrawColor(0, 0, 0, 240)
-        surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
-
-        draw.DrawText("Folded!", self.Font, self:GetWide() * 0.5, self:GetTall() * 0.5, Color(255, 255, 255), TEXT_ALIGN_CENTER)
-    else
+    if not self.Folded then
         if self.ShowTimer then
             surface.SetDrawColor(0, 0, 0)
             surface.DrawPoly(self.PolyHeader)
