@@ -22,19 +22,6 @@ util.AddNetworkString("DeclareNoWinner")
 util.AddNetworkString("DeclareWinner")
 util.AddNetworkString("ClosePokerWindow")
 
---// Code infrastructure to prevent a ghost infinite loop issue
-
-local DEBUG_INFINITE_LOOP = {}
-
-function InfiniteLoopCheck(functionToCheck, optionalUpper)
-    DEBUG_INFINITE_LOOP[functionToCheck] = DEBUG_INFINITE_LOOP[functionToCheck] or 0
-    DEBUG_INFINITE_LOOP[functionToCheck] = DEBUG_INFINITE_LOOP[functionToCheck] + 1
-
-    if DEBUG_INFINITE_LOOP[functionToCheck] and DEBUG_INFINITE_LOOP[functionToCheck] > (optionalUpper or 20) then
-        error(functionToCheck .. " - more than 20 hits of a function detected, breaking infinite loop!")
-    end
-end
-
 --// EVENT properties
 
 local EVENT = {}
@@ -116,7 +103,6 @@ end
 
 -- Called when an event is started. Must be defined for an event to work.
 function EVENT:Begin()
-    DEBUG_INFINITE_LOOP = {}
     self.Started = true
     self.NumberOfGames = self.NumberOfGames + 1
 
@@ -151,7 +137,6 @@ end
 -- Called after all players responded to the initial net message and any who haven't are removed
 function EVENT:RefreshPlayers()
     if not self.Started then self:End() return end
-    InfiniteLoopCheck("RefreshPlayers")
 
     net.Start("BeginPokerRandomat")
         net.WriteUInt(#self.Players, 3)
@@ -164,7 +149,6 @@ end
 -- Called once all the validated players' clients have responded to BeginPokerRandomat net message
 function EVENT:StartGame()
     if not self.Started then self:End() return end
-    InfiniteLoopCheck("StartGame")
 
     self:RefreshPlayers()
     self.Running = true
@@ -192,7 +176,6 @@ end
 -- Called to generate a deck of cards and shuffle them
 function EVENT:GenerateDeck()
     if not self.Started then self:End() return end
-    InfiniteLoopCheck("GenerateDeck")
 
     self.Deck = {}
 
@@ -211,7 +194,6 @@ end
 -- Called to deal a generated deck of cards out to all participating players
 function EVENT:DealDeck(isSecondDeal)
     if not self.Started then self:End() return end
-    InfiniteLoopCheck("DealDeck")
 
     for _, ply in ipairs(self.Players) do
         if ply.Status == BettingStatus.FOLD then
@@ -241,13 +223,11 @@ function EVENT:DealDeck(isSecondDeal)
 end
 
 local function GetNextValidPlayer(ply)
-    InfiniteLoopCheck("GetNextValidPlayer")
     local startingPlayer = ply
     local toCheck = ply.NextPlayer
     local nextPlayer = nil
 
     while nextPlayer == nil do
-        InfiniteLoopCheck("GetNextValidPlayerLoop", 40)
         if toCheck.Status ~= BettingStatus.FOLD then
             nextPlayer = toCheck
         elseif toCheck == startingPlayer then
@@ -263,7 +243,6 @@ end
 -- Called to mark a player as starting their turn to bet
 function EVENT:BeginBetting(optionalPlayer)
     if not self.Started then self:End() return end
-    InfiniteLoopCheck("BeginBetting")
 
     self.ExpectantBetter = nil
 
@@ -289,7 +268,6 @@ function EVENT:BeginBetting(optionalPlayer)
 end
 
 local function AllPlayersMatchingBets(ignoreNoStatus)
-    InfiniteLoopCheck("AllPlayersMatchingBets")
     local betToCompare = 0
     -- print("AllPlayersMatchingBets called")
     -- PrintTable(EVENT.Players)
@@ -411,7 +389,6 @@ end
 function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
     if not self.Started then self:End() return end
     if not ply:IsValid() then return end
-    InfiniteLoopCheck("RegisterPlayerBet")
     -- print("Register player bet")
 
     -- If we receive a bet when we're not expecting (and it isn't a fold), ignore it
@@ -500,7 +477,6 @@ end
 
 function EVENT:BeginSecoundRoundBetting()
     if not self.Started then self:End() return end
-    InfiniteLoopCheck("BeginSecoundRoundBetting")
 
     if AllPlayersMatchingBets(true) and IsAllIn(GetHighestBet())then
         self:CalculateWinner()
@@ -511,7 +487,6 @@ end
 
 function EVENT:BeginDiscarding()
     if not self.Started then self:End() return end
-    InfiniteLoopCheck("BeginDiscarding")
 
     net.Start("StartDiscard")
     net.Broadcast()
@@ -541,7 +516,6 @@ end
 
 function EVENT:RegisterPlayerDiscard(ply, discardsTable)
     if not self.Started then self:End() return end
-    InfiniteLoopCheck("RegisterPlayerDiscard")
 
     if not self.AcceptingDiscards then return end
 
@@ -576,7 +550,6 @@ end
 function EVENT:CalculateWinner()
     -- print("EVENT:CalculateWinner called")
     if not self.Started then self:End() return end
-    InfiniteLoopCheck("CalculateWinner")
 
     local winner, hand = self:GetWinningPlayer()
     -- print("calculated winner + hand:", winner, hand)
@@ -760,7 +733,6 @@ end
 function EVENT:GetWinningPlayer()
     -- print("EVENT:GetWinningPlayer called")
     if not self.Started then self:End() return end
-    InfiniteLoopCheck("GetWinningPlayer")
 
     local winningHandRank = Hands.NONE
     local winningPlayer = nil
@@ -846,7 +818,6 @@ function EVENT:ApplyRewards(winner, winningHand)
     // PrintTable(self.Players)
     if not self.Started then self:End() return end
     self.Started = false
-    InfiniteLoopCheck("ApplyRewards")
 
     local runningHealth = 0
     for _, ply in pairs(self.Players) do
