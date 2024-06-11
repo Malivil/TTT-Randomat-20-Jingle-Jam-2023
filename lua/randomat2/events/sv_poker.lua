@@ -27,6 +27,7 @@ util.AddNetworkString("ClosePokerWindow")
 
 local EVENT = {}
 local EVENT_VARIANT = {}
+local EVENT_REF = nil
 
 EVENT.Title = "A Round Of Yogscast Poker"
 EVENT.Description = "Only if the 9 of Diamonds touch!"
@@ -107,6 +108,7 @@ end
 function EVENT:Begin()
     self.Started = true
     self.NumberOfGames = self.NumberOfGames + 1
+    EVENT_REF = self
 
     self:GeneratePlayers()
 
@@ -123,15 +125,15 @@ function EVENT:Begin()
 
     -- if not timer.Exists("PokerStartTimeout") then
     timer.Create("PokerStartTimeout", GetDynamicRoundTimerValue("RoundStateStart"), 1, function()
-        if EVENT.Running then return end
+        if EVENT_REF.Running then return end
 
-        for index, unreadyPly in ipairs(EVENT.Players) do
+        for index, unreadyPly in ipairs(EVENT_REF.Players) do
             if not unreadyPly.Ready then
-                EVENT:RemovePlayer(unreadyPly)
+                EVENT_REF:RemovePlayer(unreadyPly)
             end
         end
 
-        EVENT:StartGame()
+        EVENT_REF:StartGame()
     end)
     -- end
 end
@@ -262,7 +264,7 @@ function EVENT:BeginBetting(optionalPlayer)
         net.Broadcast()
 
         timer.Create("WaitingOnPlayerBet", GetDynamicRoundTimerValue("RoundStateBetting"), 1, function()
-            EVENT:RegisterPlayerBet(EVENT.ExpectantBetter, BettingStatus.CHECK, EVENT.PlayerBets[EVENT.ExpectantBetter] or 0)
+            EVENT_REF:RegisterPlayerBet(EVENT_REF.ExpectantBetter, BettingStatus.CHECK, EVENT_REF.PlayerBets[EVENT_REF.ExpectantBetter] or 0)
         end)
     else
         self:EndBetting()
@@ -272,9 +274,9 @@ end
 local function AllPlayersMatchingBets(ignoreNoStatus)
     local betToCompare = 0
     -- print("AllPlayersMatchingBets called")
-    -- PrintTable(EVENT.Players)
+    -- PrintTable(EVENT_REF.Players)
     -- print("Manual loop check:")
-    for _, ply in ipairs(EVENT.Players) do
+    for _, ply in ipairs(EVENT_REF.Players) do
         -- print(ply:Nick(), "Status: " .. ply.Status)
         if ply.Status == BettingStatus.NONE and not ignoreNoStatus then
             return false
@@ -282,8 +284,8 @@ local function AllPlayersMatchingBets(ignoreNoStatus)
 
         if ply.Status > BettingStatus.FOLD or (ignoreNoStatus and ply.Status == BettingStatus.NONE) then
             if betToCompare == 0 then -- First bet we run across
-                betToCompare = EVENT.PlayerBets[ply]
-            elseif betToCompare ~= EVENT.PlayerBets[ply] then -- If there's differences in bet amounts in non-folded players
+                betToCompare = EVENT_REF.PlayerBets[ply]
+            elseif betToCompare ~= EVENT_REF.PlayerBets[ply] then -- If there's differences in bet amounts in non-folded players
                 return false
             end
         end
@@ -295,8 +297,8 @@ end
 local function GetHighestBet()
     local highestBet = 0
 
-    for _, ply in ipairs(EVENT.Players) do
-        local newBet = EVENT.PlayerBets[ply]
+    for _, ply in ipairs(EVENT_REF.Players) do
+        local newBet = EVENT_REF.PlayerBets[ply]
 
         if newBet and newBet > highestBet then
             highestBet = newBet
@@ -308,7 +310,7 @@ end
 
 local function ResetOtherPlayersBetStatus(ply)
     -- print("ResetOtherPlayersBetStatus called")
-    for _, other in ipairs(EVENT.Players) do
+    for _, other in ipairs(EVENT_REF.Players) do
         if other ~= ply and other.Status ~= BettingStatus.FOLD then
             other.Status = BettingStatus.NONE
         end
@@ -327,7 +329,7 @@ end
 local function PlayerChecks(ply)
     print("Player checks", ply)
     ply.Status = BettingStatus.CHECK
-    EVENT.PlayerBets[ply] = GetHighestBet()
+    EVENT_REF.PlayerBets[ply] = GetHighestBet()
 
     net.Start("PlayerChecked")
         net.WriteEntity(ply)
@@ -337,7 +339,7 @@ end
 local function PlayerCalls(ply)
     print("Player calls", ply)
     ply.Status = BettingStatus.CALL
-    EVENT.PlayerBets[ply] = GetHighestBet()
+    EVENT_REF.PlayerBets[ply] = GetHighestBet()
 
     net.Start("PlayerCalled")
         net.WriteEntity(ply)
@@ -348,7 +350,7 @@ local function PlayerRaises(ply, raise)
     print("Player raises", ply, raise)
     ply.Status = BettingStatus.RAISE
     ResetOtherPlayersBetStatus(ply)
-    EVENT.PlayerBets[ply] = raise
+    EVENT_REF.PlayerBets[ply] = raise
 
     net.Start("PlayerRaised")
         net.WriteEntity(ply)
@@ -358,7 +360,7 @@ end
 
 local function EnoughPlayersRemaining()
     local atLeastOne = false
-    for _, ply in ipairs(EVENT.Players) do
+    for _, ply in ipairs(EVENT_REF.Players) do
         if ply.Status ~= BettingStatus.FOLD then
             if atLeastOne then
                 return true
@@ -374,8 +376,8 @@ end
 local function CanDispenseWinnings()
     local onePlayerStillAliveWithBets = false
 
-    for _, ply in ipairs(EVENT.Players) do
-        if ply:Alive() and EVENT.PlayerBets[ply] then
+    for _, ply in ipairs(EVENT_REF.Players) do
+        if ply:Alive() and EVENT_REF.PlayerBets[ply] then
             if onePlayerStillAliveWithBets then
                 return true
             else
@@ -496,12 +498,12 @@ function EVENT:BeginDiscarding()
     self.AcceptingDiscards = true
 
     timer.Create("AcceptDiscards", GetDynamicRoundTimerValue("RoundStateDiscarding"), 1, function()
-        EVENT:CompletePlayerDiscarding()
+        EVENT_REF:CompletePlayerDiscarding()
     end)
 end
 
 local function AllPlayersDiscarded()
-    for _, ply in ipairs(EVENT.Players) do
+    for _, ply in ipairs(EVENT_REF.Players) do
         if not ply.HasDiscarded then
             return false
         end
@@ -983,54 +985,54 @@ local function AllPlayersReady(playerTable)
 end
 
 net.Receive("StartPokerRandomatCallback", function(len, ply)
-    if EVENT.Started and not EVENT.Running then
+    if EVENT_REF.Started and not EVENT_REF.Running then
         -- TODO It's possible the client freezes for longer than 5 seconds and still tries to run this after it unfreezes, which could cause issues. Might need a new property to track this
         ply.Ready = true
 
-        if AllPlayersReady(EVENT.Players) then
-            EVENT:StartGame()
+        if AllPlayersReady(EVENT_REF.Players) then
+            EVENT_REF:StartGame()
         end
-    elseif EVENT_VARIANT.Started then
-        -- As above, so below
-        // if not timer.Exists("PokerStartTimeout") then
-        //     timer.Create("PokerStartTimeout", GetDynamicRoundTimerValue("RoundStateStart"), 1, function()
-        //         if EVENT_VARIANT.Running then return end
+    // elseif EVENT_VARIANT.Started then
+    //     -- As above, so below
+    //     // if not timer.Exists("PokerStartTimeout") then
+    //     //     timer.Create("PokerStartTimeout", GetDynamicRoundTimerValue("RoundStateStart"), 1, function()
+    //     //         if EVENT_VARIANT.Running then return end
 
-        //         for index, unreadyPly in ipairs(EVENT_VARIANT.Players) do
-        //             if not unreadyPly.Ready then
-        //                 EVENT_VARIANT:RemovePlayer(unreadyPly)
-        //             end
-        //         end
+    //     //         for index, unreadyPly in ipairs(EVENT_VARIANT.Players) do
+    //     //             if not unreadyPly.Ready then
+    //     //                 EVENT_VARIANT:RemovePlayer(unreadyPly)
+    //     //             end
+    //     //         end
 
-        //         EVENT_VARIANT:StartGame()
-        //     end)
-        // end
+    //     //         EVENT_VARIANT:StartGame()
+    //     //     end)
+    //     // end
 
-        ply.Ready = true
+    //     ply.Ready = true
 
-        if AllPlayersReady(EVENT_VARIANT.Players) then
-            EVENT_VARIANT:StartGame()
-        end
+    //     if AllPlayersReady(EVENT_VARIANT.Players) then
+    //         EVENT_VARIANT:StartGame()
+    //     end
     end
 end)
 
 net.Receive("MakeBet", function(len, ply)
-    if EVENT.Started then
+    if EVENT_REF.Started then
         local bet = net.ReadUInt(3)
         local betAmt = net.ReadUInt(4)
 
-        EVENT:RegisterPlayerBet(ply, bet, betAmt)
-    elseif EVENT_VARIANT.Started then
-        local bet = net.ReadUInt(3)
-        local betAmt = net.ReadUInt(4)
+        EVENT_REF:RegisterPlayerBet(ply, bet, betAmt)
+    // elseif EVENT_VARIANT.Started then
+    //     local bet = net.ReadUInt(3)
+    //     local betAmt = net.ReadUInt(4)
         
-        EVENT_VARIANT:RegisterPlayerBet(ply, bet, betAmt)
+    //     EVENT_VARIANT:RegisterPlayerBet(ply, bet, betAmt)
     end
 end)
 
 net.Receive("MakeDiscard", function(len, ply)
-    if EVENT.Started then
-        if not EVENT.AcceptingDiscards then return end
+    if EVENT_REF.Started then
+        if not EVENT_REF.AcceptingDiscards then return end
 
         local cardsBeingDiscarded = {}
         local numCards = net.ReadUInt(2)
@@ -1042,21 +1044,21 @@ net.Receive("MakeDiscard", function(len, ply)
             })
         end
 
-        EVENT:RegisterPlayerDiscard(ply, cardsBeingDiscarded)
-    elseif EVENT_VARIANT.Started then
-        if not EVENT_VARIANT.AcceptingDiscards then return end
+        EVENT_REF:RegisterPlayerDiscard(ply, cardsBeingDiscarded)
+    // elseif EVENT_VARIANT.Started then
+    //     if not EVENT_VARIANT.AcceptingDiscards then return end
 
-        local cardsBeingDiscarded = {}
-        local numCards = net.ReadUInt(2)
+    //     local cardsBeingDiscarded = {}
+    //     local numCards = net.ReadUInt(2)
 
-        for i = 1, numCards do
-            table.insert(cardsBeingDiscarded, {
-                Rank = net.ReadUInt(5),
-                Suit = net.ReadUInt(3)
-            })
-        end
+    //     for i = 1, numCards do
+    //         table.insert(cardsBeingDiscarded, {
+    //             Rank = net.ReadUInt(5),
+    //             Suit = net.ReadUInt(3)
+    //         })
+    //     end
 
-        EVENT_VARIANT:RegisterPlayerDiscard(ply, cardsBeingDiscarded)
+    //     EVENT_VARIANT:RegisterPlayerDiscard(ply, cardsBeingDiscarded)
     end
 end)
 
@@ -1065,16 +1067,16 @@ end)
 function HandlePokerPlayerDeath(ply)
     if not ply or not IsValid(ply) then return end
 
-    if EVENT.Started then
-        if table.HasValue(EVENT.Players, ply) then
-            EVENT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
-            EVENT:RemovePlayer(ply)
+    if EVENT_REF.Started then
+        if table.HasValue(EVENT_REF.Players, ply) then
+            EVENT_REF:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
+            EVENT_REF:RemovePlayer(ply)
         end
-    elseif EVENT_VARIANT.Started then
-        if table.HasValue(EVENT_VARIANT.Players, ply) then
-            EVENT_VARIANT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets_Alt.NONE)
-            EVENT_VARIANT:RemovePlayer(ply)
-        end
+    // elseif EVENT_VARIANT.Started then
+    //     if table.HasValue(EVENT_VARIANT.Players, ply) then
+    //         EVENT_VARIANT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets_Alt.NONE)
+    //         EVENT_VARIANT:RemovePlayer(ply)
+    //     end
     end
 end
 
@@ -1083,20 +1085,20 @@ hook.Add("PlayerDeath", "Player Death Folds In Poker", HandlePokerPlayerDeath)
 hook.Add("PlayerSilentDeath", "Silent Player Death Folds In Poker", HandlePokerPlayerDeath)
 
 hook.Add("PlayerSay", "LoganDebugCommands", function(ply, msg)
-    if (EVENT.Started or EVENT_VARIANT.Started) and ply:SteamID64() == "76561198029935530" then
+    if EVENT_REF.Started and ply:SteamID64() == "76561198029935530" then
         local stringSplit = string.Split(string.lower(msg), " ")
         local stringCheck = stringSplit[1]
 
         if string.StartWith(stringCheck, "!fold") then
-            EVENT:RegisterPlayerBet(EVENT.ExpectantBetter, BettingStatus.FOLD, Bets.NONE)
+            EVENT_REF:RegisterPlayerBet(EVENT_REF.ExpectantBetter, BettingStatus.FOLD, Bets.NONE)
         elseif string.StartWith(stringCheck, "!check") then
-            EVENT:RegisterPlayerBet(EVENT.ExpectantBetter, BettingStatus.CHECK, GetHighestBet())
+            EVENT_REF:RegisterPlayerBet(EVENT_REF.ExpectantBetter, BettingStatus.CHECK, GetHighestBet())
         elseif string.StartWith(stringCheck, "!call") then
-            EVENT:RegisterPlayerBet(EVENT.ExpectantBetter, BettingStatus.CALL, GetHighestBet())
+            EVENT_REF:RegisterPlayerBet(EVENT_REF.ExpectantBetter, BettingStatus.CALL, GetHighestBet())
         elseif string.StartWith(stringCheck, "!raise") then
-            EVENT:RegisterPlayerBet(EVENT.ExpectantBetter, BettingStatus.RAISE, tonumber(stringSplit[2])) -- values match Bets/Bets_Alt in sh_poker
+            EVENT_REF:RegisterPlayerBet(EVENT_REF.ExpectantBetter, BettingStatus.RAISE, tonumber(stringSplit[2])) -- values match Bets/Bets_Alt in sh_poker
         elseif string.StartWith(stringCheck, "!end") then
-            EVENT:End()
+            EVENT_REF:End()
         end
     end
 end)
@@ -1113,7 +1115,7 @@ EVENT_VARIANT.id = "poker_colluding"
 EVENT_VARIANT.MinPlayers = 3
 
 function EVENT_VARIANT:StartGame()
-    if not self.Started or EVENT.Started then self:End() return end -- Difference
+    if not self.Started or EVENT_REF.Started then self:End() return end -- Difference
 
     self:RefreshPlayers()
     self.Running = true
