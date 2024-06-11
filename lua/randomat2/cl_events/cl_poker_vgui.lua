@@ -70,7 +70,6 @@ function PlayerCard:SetFont(newfont)
 end
 
 function PlayerCard:SetPlayer(ply)
-    print("player card SetPlayer", ply, self.Player)
     if ply then
         self.Player = ply:Nick()
     end
@@ -721,7 +720,6 @@ function Controls:ResetRaiseOptions(baselineBet)
     end
 
     for _, bet in pairs(table.SortByKey(betsTable, true)) do
-        print("\tbetsTable", _, bet, baselineBet, BetToString(bet))
         if baselineBet < betsTable[bet] then
             self.RaiseOpt:AddChoice(BetToString(betsTable[bet]), betsTable[bet])
         end
@@ -822,10 +820,6 @@ function Main:TemporaryMessage(message, optionalTime)
     if self.DisplayPermanentMessage then return end
 
     local cutoff = CurTime() + (optionalTime or GetDynamicRoundTimerValue("RoundStateMessage"))
-
-    -- if self.DisplayMessageTime < cutoff and lowPriority and not self.DisplayMessageTime then
-    --     return
-    -- end
 
     self.DisplayMessageTime = cutoff
     self.DisplayTemporaryMessage = true

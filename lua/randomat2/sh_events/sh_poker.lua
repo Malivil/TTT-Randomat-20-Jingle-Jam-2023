@@ -243,3 +243,11 @@ function IsAllIn(bet)
         return bet == Bets.ALL
     end
 end
+
+function PrintHand(hand, shouldTab)
+    for i, card in pairs(hand) do
+        local toPrint = ""
+        if shouldTab then toPrint = "\t" end
+        print(toPrint .. CardRankToName(card.Rank) .. "(" .. card.Rank .. ") of " .. CardSuitToName(card.Suit) .. "(" .. card.Suit .. ")")
+    end
+end

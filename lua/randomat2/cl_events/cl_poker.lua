@@ -279,7 +279,6 @@ net.Receive("StartPokerRandomat", function()
             break
         end
     end
-    print("StartPokerRandomat called")
 end)
 
 net.Receive("BeginPokerRandomat", function()
@@ -315,7 +314,6 @@ net.Receive("NotifyBlinds", function()
 
     EVENT:SetupControls()
     EVENT:AlertBlinds(bigBlind, smallBlind)
-    print("NotifyBlinds called")
 end)
 
 net.Receive("DealCards", function()
@@ -440,7 +438,6 @@ net.Receive("StartPokerVariantRandomat", function()
             break
         end
     end
-    print("StartPokerVariantRandomat called")
 end)
 
 net.Receive("BeginPokerVariantRandomat", function()
@@ -459,21 +456,21 @@ net.Receive("BeginPokerVariantRandomat", function()
     end
 
     EVENT:RegisterPlayers(players, selfIsPlaying)
-    print("BeginPokerVariantRandomat called")
 end)
 
 --[[
-    Legacy bugs:
+    Legacy bugs (didn't fix outright but stopped running into):
     - Was running into bet looping issues
     - Folding seemed to trigger an infinite loop
-        - Unable to reproduce?
+        * Unable to reproduce?
     - Non-blind player calling instantly ends the first round of betting BIG ISSUE
-        - Seems to break a lot of other functionality
+        * Seems to break a lot of other functionality
 
     Feature Improvements:
     - Need to finish variant mode
 
     Bugs:
     - It's possible if all other players die to earn negative bonus health, which does reduce your health
-    - Two sets of two pairs had the lower pair win (winning hands seems to not be perfect)
+    - The player who bets after discarding is inconsistent
+        FIXED to test
 ]]
