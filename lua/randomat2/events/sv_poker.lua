@@ -8,6 +8,7 @@ util.AddNetworkString("BeginPokerRandomat")
 util.AddNetworkString("BeginPokerVariantRandomat")
 util.AddNetworkString("NotifyBlinds")
 util.AddNetworkString("DealCards")
+util.AddNetworkString("ShareCards")
 util.AddNetworkString("StartBetting")
 util.AddNetworkString("MakeBet")
 util.AddNetworkString("PlayerFolded")
@@ -89,6 +90,7 @@ function EVENT:GeneratePlayers()
     for i = 1, #playersToPlay do
         local nextPlayerIndex = (i % #playersToPlay) + 1 -- Makes it so final player's 'next player' wraps around to [1]
         playersToPlay[i].NextPlayer = playersToPlay[nextPlayerIndex]
+        playersToPlay[nextPlayerIndex].PrevPlayer = playersToPlay[i]    
         playersToPlay[i].Status = BettingStatus.NONE
     end
 
@@ -494,13 +496,7 @@ function EVENT:BeginDiscarding()
     self.AcceptingDiscards = true
 
     timer.Create("AcceptDiscards", GetDynamicRoundTimerValue("RoundStateDiscarding"), 1, function()
-        self.AcceptingDiscards = false
-        self.HaveDiscarded = true
-        self:DealDeck(true)
-
-        timer.Simple(GetDynamicRoundTimerValue("RoundStateMessage"), function()
-            self:BeginSecoundRoundBetting()
-        end)
+        EVENT:CompletePlayerDiscarding()
     end)
 end
 
@@ -535,16 +531,20 @@ function EVENT:RegisterPlayerDiscard(ply, discardsTable)
 
     ply.HasDiscarded = true
     if AllPlayersDiscarded() then
-        timer.Remove("AcceptDiscards")
-        self.AcceptingDiscards = false
-        self.HaveDiscarded = true
-
-        self:DealDeck(true)
-
-        timer.Simple(GetDynamicRoundTimerValue("RoundStateMessage"), function()
-            self:BeginSecoundRoundBetting()
-        end)
+        self:CompletePlayerDiscarding()
     end
+end
+
+function EVENT:CompletePlayerDiscarding()
+    timer.Remove("AcceptDiscards")
+    self.AcceptingDiscards = false
+    self.HaveDiscarded = true
+
+    self:DealDeck(true)
+
+    timer.Simple(GetDynamicRoundTimerValue("RoundStateMessage"), function()
+        self:BeginSecoundRoundBetting()
+    end)
 end
 
 function EVENT:CalculateWinner()
@@ -873,6 +873,8 @@ function EVENT:ResetProperties()
         ply.Cards = {}
         ply.HasDiscarded = false
         ply.Status = BettingStatus.NONE
+        ply.NextPlayer = nil
+        ply.PrevPlayer = nil
     end
 end
 
@@ -990,19 +992,19 @@ net.Receive("StartPokerRandomatCallback", function(len, ply)
         end
     elseif EVENT_VARIANT.Started then
         -- As above, so below
-        if not timer.Exists("PokerStartTimeout") then
-            timer.Create("PokerStartTimeout", GetDynamicRoundTimerValue("RoundStateStart"), 1, function()
-                if EVENT_VARIANT.Running then return end
+        // if not timer.Exists("PokerStartTimeout") then
+        //     timer.Create("PokerStartTimeout", GetDynamicRoundTimerValue("RoundStateStart"), 1, function()
+        //         if EVENT_VARIANT.Running then return end
 
-                for index, unreadyPly in ipairs(EVENT_VARIANT.Players) do
-                    if not unreadyPly.Ready then
-                        EVENT_VARIANT:RemovePlayer(unreadyPly)
-                    end
-                end
+        //         for index, unreadyPly in ipairs(EVENT_VARIANT.Players) do
+        //             if not unreadyPly.Ready then
+        //                 EVENT_VARIANT:RemovePlayer(unreadyPly)
+        //             end
+        //         end
 
-                EVENT_VARIANT:StartGame()
-            end)
-        end
+        //         EVENT_VARIANT:StartGame()
+        //     end)
+        // end
 
         ply.Ready = true
 
@@ -1014,10 +1016,9 @@ end)
 
 net.Receive("MakeBet", function(len, ply)
     if EVENT.Started then
-        -- print("MakeBet received", ply)
         local bet = net.ReadUInt(3)
         local betAmt = net.ReadUInt(4)
-        -- print("\t", bet, betAmt)
+
         EVENT:RegisterPlayerBet(ply, bet, betAmt)
     elseif EVENT_VARIANT.Started then
         local bet = net.ReadUInt(3)
@@ -1062,6 +1063,8 @@ end)
 --// Hooks
 
 function HandlePokerPlayerDeath(ply)
+    if not ply or not IsValid(ply) then return end
+
     if EVENT.Started then
         if table.HasValue(EVENT.Players, ply) then
             EVENT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
@@ -1080,7 +1083,7 @@ hook.Add("PlayerDeath", "Player Death Folds In Poker", HandlePokerPlayerDeath)
 hook.Add("PlayerSilentDeath", "Silent Player Death Folds In Poker", HandlePokerPlayerDeath)
 
 hook.Add("PlayerSay", "LoganDebugCommands", function(ply, msg)
-    if EVENT.Started and ply:SteamID64() == "76561198029935530" then
+    if (EVENT.Started or EVENT_VARIANT.Started) and ply:SteamID64() == "76561198029935530" then
         local stringSplit = string.Split(string.lower(msg), " ")
         local stringCheck = stringSplit[1]
 
@@ -1103,35 +1106,77 @@ Randomat:register(EVENT)
 --// WOMEN ARE COLLUDING VARIANT
 
 EVENT_VARIANT = table.Copy(EVENT)
-EVENT_VARIANT.Title = "A Round Of Yogscast Colluding Poker"
+EVENT_VARIANT.Title = "A Colluded Round Of Yogscast Poker"
 EVENT_VARIANT.Description = "The women are colluding!"
 EVENT_VARIANT.ExtDescription = "A round of Yogscast Poker, but the women are colluding."
 EVENT_VARIANT.id = "poker_colluding"
 EVENT_VARIANT.MinPlayers = 3
 
--- function EVENT_VARIANT:StartGame()
---     if not self.Started or EVENT.Started then self:End() return end
+function EVENT_VARIANT:StartGame()
+    if not self.Started or EVENT.Started then self:End() return end -- Difference
 
---     self:RefreshPlayers()
---     self.Running = true
+    self:RefreshPlayers()
+    self.Running = true
 
---     local smallBlind = self.Players[1]
---     local bigBlind = self.Players[2]
+    self.SmallBlind = self.Players[(self.NumberOfGames % #self.Players) + 1]
+    self.BigBlind = self.Players[((self.NumberOfGames + 1) % #self.Players) + 1]
 
---     self:RegisterPlayerBet(smallBlind, BettingStatus.RAISE, GetLittleBlindBet(), true)
---     self:RegisterPlayerBet(bigBlind, BettingStatus.RAISE, GetBigBlindBet(), true)
+    self:RegisterPlayerBet(self.SmallBlind, BettingStatus.RAISE, GetLittleBlindBet(), true)
+    self:RegisterPlayerBet(self.BigBlind, BettingStatus.RAISE, GetBigBlindBet(), true)
+    self.BigBlind.Status = BettingStatus.NONE
 
---     net.Start("NotifyBlinds")
---         net.WriteEntity(smallBlind)
---         net.WriteEntity(bigBlind)
---     net.Broadcast()
+    net.Start("NotifyBlinds")
+        net.WriteEntity(self.SmallBlind)
+        net.WriteEntity(self.BigBlind)
+    net.Broadcast()
 
---     self:GenerateDeck()
---     self:DealDeck()
+    self:GenerateDeck()
+    self:DealDeck()
+    self:GenerateCollusions() -- Differences
+    self:ShareHands() -- Difference
 
---     timer.Simple(GetDynamicRoundTimerValue("RoundStateMessage"), function()
---         self:BeginBetting(bigBlind.NextPlayer)
---     end)
--- end
+    timer.Simple(GetDynamicRoundTimerValue("RoundStateMessage"), function()
+        self:BeginBetting(self.BigBlind.NextPlayer)
+    end)
+end
+
+function EVENT_VARIANT:GenerateCollusions()
+    if not self.Started then self:End() return end
+
+    local playerCount = #self.Players
+    self.ColludingPlayers = {}
+
+    -- We're keeping this nice and simple
+    for _, ply in ipairs(self.Players) do
+        self.ColludingPlayers[ply] = ply.PrevPlayer
+    end
+end
+
+function EVENT_VARIANT:ShareHands()
+    if not self.Started then self:End() return end
+
+    for ply1, ply2 in pairs(self.ColludingPlayers) do
+        net.Start("ShareCards")
+            net.WriteEntity(ply2)
+            for i, card in ipairs(ply2.Cards) do
+                net.WriteUInt(card.Rank, 5)
+                net.WriteUInt(card.Suit, 3)
+            end
+        net.Send(ply1)
+    end
+end
+
+function EVENT_VARIANT:GetConVars()
+    // local sliders = {}
+    // local checks = {}
+    // local textboxes = {}
+
+    // table.insert(checks, {
+    //     cmd = "",
+    //     dsc = "This event uses the non-variant ConVars"
+    // })
+
+    // return sliders, checks, textboxes
+end
 
 Randomat:register(EVENT_VARIANT)
