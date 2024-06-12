@@ -106,6 +106,8 @@ end
 
 -- Called when an event is started. Must be defined for an event to work.
 function EVENT:Begin()
+    if self.Started then return end
+    
     self.Started = true
     self.NumberOfGames = self.NumberOfGames + 1
     EVENT_REF = self
