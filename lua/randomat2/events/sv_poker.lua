@@ -1,14 +1,13 @@
 --// Logan Christianson
 
 util.AddNetworkString("StartPokerRandomat")
-util.AddNetworkString("StartPokerVariantRandomat")
+-- util.AddNetworkString("StartPokerVariantRandomat")
 util.AddNetworkString("StartPokerRandomatCallback")
-util.AddNetworkString("StartPokerVariantRandomatCallback")
+-- util.AddNetworkString("StartPokerVariantRandomatCallback")
 util.AddNetworkString("BeginPokerRandomat")
-util.AddNetworkString("BeginPokerVariantRandomat")
+-- util.AddNetworkString("BeginPokerVariantRandomat")
 util.AddNetworkString("NotifyBlinds")
 util.AddNetworkString("DealCards")
-util.AddNetworkString("ShareCards")
 util.AddNetworkString("StartBetting")
 util.AddNetworkString("MakeBet")
 util.AddNetworkString("PlayerFolded")
@@ -22,6 +21,9 @@ util.AddNetworkString("RevealHands")
 util.AddNetworkString("DeclareNoWinner")
 util.AddNetworkString("DeclareWinner")
 util.AddNetworkString("ClosePokerWindow")
+
+util.AddNetworkString("ShareCards")
+util.AddNetworkString("MarkRoundVariant")
 
 --// EVENT properties
 
@@ -54,7 +56,7 @@ EVENT.PlayerBets = {}
 function EVENT:GeneratePlayers()
     local removedPlayers = {}
     local playersToPlay = {}
-
+    print("EVENT:GeneratePlayers called")
     -- If continuous play is enabled, return the previous player list, clean up any disconnected players, and add in as many new players as possible
     if ConVars.EnableContinuousPlay:GetBool() and #self.ContinuousPlayers > 0 then
         playersToPlay = table.Copy(self.ContinuousPlayers)
@@ -89,7 +91,7 @@ function EVENT:GeneratePlayers()
     end
 
     for i = 1, #playersToPlay do
-        local nextPlayerIndex = (i % #playersToPlay) + 1 -- Makes it so final player's 'next player' wraps around to [1]
+        local nextPlayerIndex = (i % #playersToPlay) + 1
         playersToPlay[i].NextPlayer = playersToPlay[nextPlayerIndex]
         playersToPlay[nextPlayerIndex].PrevPlayer = playersToPlay[i]    
         playersToPlay[i].Status = BettingStatus.NONE
@@ -107,7 +109,7 @@ end
 -- Called when an event is started. Must be defined for an event to work.
 function EVENT:Begin()
     if self.Started then return end
-    
+    print("EVENT:Begin called", self)
     self.Started = true
     self.NumberOfGames = self.NumberOfGames + 1
     EVENT_REF = self
@@ -232,13 +234,17 @@ local function GetNextValidPlayer(ply)
     local startingPlayer = ply
     local toCheck = ply.NextPlayer
     local nextPlayer = nil
-
+    print("GetNextValidPlayer called")
     while nextPlayer == nil do
+        print("\t", toCheck, toCheck.Status)
         if toCheck.Status ~= BettingStatus.FOLD then
+            print("\tdebug1")
             nextPlayer = toCheck
         elseif toCheck == startingPlayer then
+            print("\tdebug2")
             return
         else
+            print("\tdebug3")
             toCheck = toCheck.NextPlayer
         end
     end
@@ -251,13 +257,13 @@ function EVENT:BeginBetting(optionalPlayer)
     if not self.Started then self:End() return end
 
     self.ExpectantBetter = nil
-
+    -- print("BeginBetting called", optionalPlayer, self.BigBlind.NextPlayer)
     if optionalPlayer and optionalPlayer.Status ~= BettingStatus.FOLD then
         self.ExpectantBetter = optionalPlayer
     -- elseif self.Players[2].NextPlayer.Status ~= BettingStatus.FOLD then
     --     self.ExpectantBetter = self.Players[2].NextPlayer
     else
-        self.ExpectantBetter = GetNextValidPlayer(optionalPlayer or self.BigBlind.NextPlayer)
+        self.ExpectantBetter = GetNextValidPlayer(optionalPlayer or self.BigBlind)
     end
 
     if self.ExpectantBetter then
@@ -962,6 +968,8 @@ function EVENT:GetConVars()
 end
 
 function EVENT:RemovePlayer(ply)
+    print("EVENT:RemovePlayer() called", ply, #self.Players, self.MinPlayers)
+    PrintTable(self.Players)
     table.remove(self.Players, table.KeyFromValue(self.Players, ply) or 0)
     self.PlayerBets[ply] = nil
 
@@ -1067,7 +1075,7 @@ end)
 --// Hooks
 
 function HandlePokerPlayerDeath(ply)
-    if not ply or not IsValid(ply) then return end
+    if not ply or not IsValid(ply) or not EVENT or not EVENT.Started or not EVENT_VARIANT or not EVENT_VARIANT.Started then return end
 
     if EVENT_REF.Started then
         if table.HasValue(EVENT_REF.Players, ply) then
@@ -1087,7 +1095,7 @@ hook.Add("PlayerDeath", "Player Death Folds In Poker", HandlePokerPlayerDeath)
 hook.Add("PlayerSilentDeath", "Silent Player Death Folds In Poker", HandlePokerPlayerDeath)
 
 hook.Add("PlayerSay", "LoganDebugCommands", function(ply, msg)
-    if EVENT_REF.Started and ply:SteamID64() == "76561198029935530" then
+    if EVENT_REF.Started and ply:IsAdmin() then // ply:SteamID64() == "76561198029935530" then
         local stringSplit = string.Split(string.lower(msg), " ")
         local stringCheck = stringSplit[1]
 
@@ -1110,24 +1118,28 @@ Randomat:register(EVENT)
 --// WOMEN ARE COLLUDING VARIANT
 
 EVENT_VARIANT = table.Copy(EVENT)
-EVENT_VARIANT.Title = "A Colluded Round Of Yogscast Poker"
+EVENT_VARIANT.Title = "A Suspicious Round Of Yogscast Poker"
 EVENT_VARIANT.Description = "The women are colluding!"
-EVENT_VARIANT.ExtDescription = "A round of Yogscast Poker, but the women are colluding."
+EVENT_VARIANT.ExtDescription = "A variant game of Yogscast Poker, but the women are colluding. Uses the\nnon-variant mode's ConVars"
 EVENT_VARIANT.id = "poker_colluding"
 EVENT_VARIANT.MinPlayers = 3
 
 function EVENT_VARIANT:StartGame()
-    if not self.Started or EVENT_REF.Started then self:End() return end -- Difference
+    if self.Started or EVENT_REF.Started then self:End() return end -- Difference
 
     self:RefreshPlayers()
     self.Running = true
 
     self.SmallBlind = self.Players[(self.NumberOfGames % #self.Players) + 1]
     self.BigBlind = self.Players[((self.NumberOfGames + 1) % #self.Players) + 1]
-
+    print("event variant debug", self.SmallBlind, self.BigBlind, self)
+    PrintTable(self)
     self:RegisterPlayerBet(self.SmallBlind, BettingStatus.RAISE, GetLittleBlindBet(), true)
     self:RegisterPlayerBet(self.BigBlind, BettingStatus.RAISE, GetBigBlindBet(), true)
     self.BigBlind.Status = BettingStatus.NONE
+
+    net.Send("MarkRoundVariant")
+    net.Broadcast()
 
     net.Start("NotifyBlinds")
         net.WriteEntity(self.SmallBlind)
@@ -1171,16 +1183,6 @@ function EVENT_VARIANT:ShareHands()
 end
 
 function EVENT_VARIANT:GetConVars()
-    // local sliders = {}
-    // local checks = {}
-    // local textboxes = {}
-
-    // table.insert(checks, {
-    //     cmd = "",
-    //     dsc = "This event uses the non-variant ConVars"
-    // })
-
-    // return sliders, checks, textboxes
 end
 
 Randomat:register(EVENT_VARIANT)

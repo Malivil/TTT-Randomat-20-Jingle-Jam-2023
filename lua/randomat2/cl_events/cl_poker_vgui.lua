@@ -71,7 +71,8 @@ end
 
 function PlayerCard:SetPlayer(ply)
     if ply then
-        self.Player = ply:Nick()
+        -- self.Player = ply:Nick()
+        self.Player = "123456789-123456789"
     end
 
     self:CalculateNameSize()
@@ -835,10 +836,10 @@ end
 function Main:SetSelfFolded()
     self.Folded = true
 
-    self.FoldedPanel = vgui.Create("DPanel, self")
+    self.FoldedPanel = vgui.Create("DPanel", self)
     self.FoldedPanel:SetPos(0, 0)
     self.FoldedPanel:SetSize(self:GetWide(), self:GetTall())
-    self.FoldednPanel.Paint = function()
+    self.FoldedPanel.Paint = function()
         surface.SetDrawColor(0, 0, 0, 240)
         surface.DrawRect(0, 0, self:GetWide(), self:GetTall())
 

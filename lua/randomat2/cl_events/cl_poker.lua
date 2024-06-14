@@ -6,12 +6,18 @@ local EventSounds = {
     "poker/poker_practically_touching.ogg",
     "poker/poker_they_touched.ogg"
 }
+local EventVariantSounds = {
+    "poker/colluding_live_women.ogg",
+    "poker/colluding_pyrion.ogg",
+    "poker/colluding_zylush.ogg"
+}
 
 EVENT.Players = {}
 EVENT.Hand = {}
 EVENT.IsPlaying = false
 EVENT.CurrentlyBetting = false
 EVENT.ShouldPlayStartSound = true
+EVENT.IsVariantMode = false
 
 function EVENT:SetupPanel(isContinuedGame)
     self.PanelActive = true
@@ -29,13 +35,16 @@ function EVENT:SetupPanel(isContinuedGame)
         if self.ShouldPlayStartSound then
             if ConVars.EnableYogsification:GetBool() then
                 timer.Simple(1, function()
-                    surface.PlaySound(EventSounds[math.random(#EventSounds)])
-                end)
-            else
-                timer.Simple(1, function()
-                    surface.PlaySound("poker/shuffle.ogg")
+                    local tbl = EventSounds
+                    if self.IsVariantMode then tbl = EventVariantSounds end
+
+                    surface.PlaySound(tbl[math.random(#tbl)])
                 end)
             end
+        else
+            timer.Simple(0, function()
+                surface.PlaySound("poker/shuffle.ogg")
+            end)
         end
     end
 end
@@ -68,6 +77,7 @@ function EVENT:ClosePanel()
     self.IsPlaying = false
     self.CurrentlyBetting = false
     self.ShouldPlayStartSound = false
+    self.IsVariantMode = false
 end
 
 function EVENT:RegisterPlayers(newPlayersTbl, selfIsIncluded, isContinuedGame)
@@ -233,7 +243,7 @@ function EVENT:RegisterWinner(winner, hand)
                 surface.PlaySound("poker/you_won.ogg")
             end
         else
-            self.PokerMain:PermanentMessage(winner:Nick() .. " wins the hand with a\n" .. hand .. "!")
+            self.PokerMain:PermanentMessage(winner:Nick() .. " wins the hand with \n" .. hand .. "!")
 
             if ConVars.EnableYogsification:GetBool() then
                 surface.PlaySound("poker/robbed.ogg")
@@ -424,38 +434,18 @@ end)
 
 --// Variant Event
 
-net.Receive("StartPokerVariantRandomat", function()
-    EVENT.Self = LocalPlayer()
-
-    local numPlayers = net.ReadUInt(3)
-    for i = 1, numPlayers do
-        local ply = net.ReadEntity()
-
-        if ply == EVENT.Self then
-            net.Start("StartPokerVariantRandomatCallback")
-            net.SendToServer()
-
-            break
-        end
-    end
+net.Receive("MarkRoundVariant", function()
+    EVENT.IsVariantMode = true
 end)
 
-net.Receive("BeginPokerVariantRandomat", function()
-    local players = {}
-    local selfIsPlaying = false
-
-    local numPlayers = net.ReadUInt(3)
-    for i = 1, numPlayers do
-        local ply = net.ReadEntity()
-
-        table.insert(players, ply)
-
-        if ply == EVENT.Self then
-            selfIsPlaying = true
-        end
+net.Receive("ShareCards", function()
+    local colludingPlayer = net.ReadEntity()
+    local colludingPlayerHand = {}
+    for i = 1, 5 do
+        local rank = net.ReadUInt(5)
+        local suit = net.ReadUInt(3)
+        table.insert(newHand, {Rank = rank, Suit = suit})
     end
-
-    EVENT:RegisterPlayers(players, selfIsPlaying)
 end)
 
 --[[
@@ -465,12 +455,14 @@ end)
         * Unable to reproduce?
     - Non-blind player calling instantly ends the first round of betting BIG ISSUE
         * Seems to break a lot of other functionality
+    - It's possible if all other players die to earn negative bonus health, which does reduce your health
+        * Seems to only be an issue with bots
 
     Feature Improvements:
     - Need to finish variant mode
+    - Look at all 'TODO's
+    - Clean up unnecessary comments
 
     Bugs:
-    - It's possible if all other players die to earn negative bonus health, which does reduce your health
-    - The player who bets after discarding is inconsistent
-        FIXED to test
+    - 
 ]]
