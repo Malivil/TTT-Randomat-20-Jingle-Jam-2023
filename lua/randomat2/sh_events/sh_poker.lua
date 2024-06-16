@@ -1,5 +1,6 @@
+-- Logan Christianson
+
 ConVars = ConVars or {}
-// CreateConVar("randomat_poker_", "", FCVAR_REPLICATED, "")
 ConVars.ManualRoundStateTimes = ConVars.ManualRoundStateTimes or CreateConVar("randomat_poker_manual_round_state_times", "0", FCVAR_REPLICATED, "Enables use of the various 'RoundState*' ConVars")
 ConVars.RoundStateStart = ConVars.RoundStateStart or CreateConVar("randomat_poker_round_state_start", "5", FCVAR_REPLICATED, "Manually overrides how long clients have to repond to the initial game start", 1, 10)
 ConVars.RoundStateBetting = ConVars.RoundStateBetting or CreateConVar("randomat_poker_round_state_betting", "30", FCVAR_REPLICATED, "Manually overrides how long the 'betting' phase of the round lasts", 5, 60)
@@ -7,10 +8,10 @@ ConVars.RoundStateDiscarding = ConVars.RoundStateDiscarding or CreateConVar("ran
 ConVars.RoundStateMessage = ConVars.RoundStateMessage or CreateConVar("randomat_poker_round_state_message", "5", FCVAR_REPLICATED, "Manually overrides how long the round state messages should appear for", 1, 10)
 ConVars.RoundStateEnd = ConVars.RoundStateEnd or CreateConVar("randomat_poker_round_state_end", "5", FCVAR_REPLICATED, "Manually overrides how long the game outcome message lasts for (as well as how long to wait"
     .. " before starting a new round if continuous play is enabled)", 1, 60)
-ConVars.EnableYogsification = ConVars.EnableYogsification or CreateConVar("randomat_poker_enable_yogsification", "1", FCVAR_REPLICATED, "Enables the Yogscast gag/sfx") -- Working
+ConVars.EnableYogsification = ConVars.EnableYogsification or CreateConVar("randomat_poker_enable_yogsification", "1", FCVAR_REPLICATED, "Enables the Yogscast gag/sfx")
 ConVars.EnableRoundStateAudioCues = ConVars.EnableRoundStateAudioCues or CreateConVar("randomat_poker_enable_audio_cues", "1", FCVAR_REPLICATED, "Enables the round state audio cues")
 ConVars.EnableContinuousPlay = ConVars.EnableContinuousPlay or CreateConVar("randomat_poker_enable_continuous_play", "0", FCVAR_REPLICATED, "Enables continuous play, event repeats until TTT game ends")
-ConVars.EnableSmallerBets = ConVars.EnableSmallerBets or CreateConVar("randomat_poker_enable_smaller_bets", "0", FCVAR_REPLICATED, "Enables smaller bet increments (default: 25-50-75-100, alt: 10-20-30-...-100)") -- Working
+ConVars.EnableSmallerBets = ConVars.EnableSmallerBets or CreateConVar("randomat_poker_enable_smaller_bets", "0", FCVAR_REPLICATED, "Enables smaller bet increments (default: 25-50-75-100, alt: 10-20-30-...-100)")
 
 DynamicTimerPlayerCount = 0
 function GetDynamicRoundTimerValue(conVar)

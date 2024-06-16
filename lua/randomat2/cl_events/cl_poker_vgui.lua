@@ -71,8 +71,11 @@ end
 
 function PlayerCard:SetPlayer(ply)
     if ply then
-        -- self.Player = ply:Nick()
-        self.Player = "123456789-123456789"
+        self.Player = ply:Nick()
+
+        if string.len(self.Player) > 10 then
+            self.Player = string.Left(self.Player, 8) .. "..."
+        end  
     end
 
     self:CalculateNameSize()
@@ -86,7 +89,7 @@ function PlayerCard:CalculateNameSize()
     surface.SetFont(self.Font)
 
     if self.Player then
-        self.NameWidth, self.NameHeight = surface.GetTextSize(self.Player) -- TODO this will likely need to be cut off after enough characters
+        self.NameWidth, self.NameHeight = surface.GetTextSize(self.Player)
     else
         self.NameWidth, self.NameHeight = surface.GetTextSize(self.NoPlayerName)
     end
@@ -149,7 +152,6 @@ function PlayerCard:Paint()
     surface.SetTextPos(6, 1)
     surface.DrawText(self.BlindStatus)
 
-    -- Name
     surface.SetFont(self.Font)
     surface.SetTextColor(255, 255, 255)
     surface.SetTextPos(self:GetWide() * 0.5 - (self.NameWidth * 0.5), 10)
@@ -157,11 +159,9 @@ function PlayerCard:Paint()
     surface.SetDrawColor(255, 255, 255)
     surface.DrawLine(self:GetWide() * 0.5 - (self.NameWidth * 0.5), 10 + self.NameHeight, self:GetWide() * 0.5 + (self.NameWidth * 0.5), 10 + self.NameHeight)
 
-    -- Bet amount
     surface.SetTextPos(self:GetWide() * 0.5 - (self.BetWidth * 0.5), self:GetTall() * 0.5 - (self.BetHeight * 0.5))
     surface.DrawText(self.BetText)
 
-    -- Recent Action
     surface.SetTextPos(self:GetWide() * 0.5 - (self.ActionWidth * 0.5), self:GetTall() - 10 - self.ActionHeight)
     surface.DrawText(self.ActionText)
 
@@ -241,7 +241,7 @@ function OtherPlayers:SetPlayerBet(ply, betType, bet)
         if betType == BettingStatus.FOLD then
             card:SetFolded()
         elseif betType == BettingStatus.CHECK then
-            -- Do nothing? Set message?
+            -- Do nothing
         elseif betType == BettingStatus.CALL then
             card:SetBet(bet)
         elseif betType == BettingStatus.RAISE then
@@ -348,10 +348,16 @@ vgui.Register("Poker_Card", Card, "DButton")
 local Hand = table.Copy(LoganPanel)
 Hand.Cards = {}
 Hand.CardsToDiscard = {}
+Hand.TitleText = "Your Hand"
 Hand.CanDiscard = false
+Hand.Edited = false
 Hand.CardWide = 180
 Hand.NumSelectCards = 0
 Hand.CardTall = math.Round(Hand.CardWide * 1.4)
+
+function Hand:Init()
+    self.Cards = {}
+end
 
 function Hand:SetCardWidth(newWidth)
     self.CardWide = newWidth
@@ -379,6 +385,11 @@ function Hand:SetHand(newHand)
 
         table.insert(self.Cards, newCard)
     end
+end
+
+function Hand:SetTitle(titleText)
+    self.TitleText = titleText
+    self.Edited = true
 end
 
 function Hand:SetCanDiscard(canDiscard)
@@ -471,12 +482,13 @@ end
 
 function Hand:Paint()
     surface.SetDrawColor(0, 0, 0)
-    surface.DrawRect(self:GetWide() * 0.5 - 45, 1, 90, 34)
+    if self.Edited then
+        surface.DrawRect(self:GetWide() * 0.5 - 60, 1, 120, 34)
+    else
+        surface.DrawRect(self:GetWide() * 0.5 - 45, 1, 90, 34)
+    end
 
-    surface.SetFont(self.Font)
-    surface.SetTextColor(255, 255, 255)
-    surface.SetTextPos(self:GetWide() * 0.5 - 40, 5)
-    surface.DrawText("Your Hand")
+    draw.DrawText(self.TitleText, self.Font, self:GetWide() * 0.5, 5, Color(255, 255, 255), TEXT_ALIGN_CENTER)
 end
 
 function Hand:PaintOver()
@@ -519,7 +531,6 @@ function Controls:DisableRaising()
 end
 
 function Controls:Setup()
-    -- Set up vgui buttons for fold, check, call, raise
     local margin = 10
     local leftOverSpace = self:GetWide() - (margin * 5)
     local buttonWidth = leftOverSpace * 0.20

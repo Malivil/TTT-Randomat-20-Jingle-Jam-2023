@@ -1,11 +1,8 @@
 --// Logan Christianson
 
 util.AddNetworkString("StartPokerRandomat")
--- util.AddNetworkString("StartPokerVariantRandomat")
 util.AddNetworkString("StartPokerRandomatCallback")
--- util.AddNetworkString("StartPokerVariantRandomatCallback")
 util.AddNetworkString("BeginPokerRandomat")
--- util.AddNetworkString("BeginPokerVariantRandomat")
 util.AddNetworkString("NotifyBlinds")
 util.AddNetworkString("DealCards")
 util.AddNetworkString("StartBetting")
@@ -17,7 +14,6 @@ util.AddNetworkString("PlayerRaised")
 util.AddNetworkString("StartDiscard")
 util.AddNetworkString("PlayersFinishedBetting")
 util.AddNetworkString("MakeDiscard")
-util.AddNetworkString("RevealHands")
 util.AddNetworkString("DeclareNoWinner")
 util.AddNetworkString("DeclareWinner")
 util.AddNetworkString("ClosePokerWindow")
@@ -79,7 +75,6 @@ function EVENT:GeneratePlayers()
         end
     else
         playersToPlay = self:GetAlivePlayers(true)
-        // table.Shuffle(playersToPlay) -- Already shuffled?
     end
     
     local numPlayersOverMax = #playersToPlay - self.MaxPlayers
@@ -127,7 +122,6 @@ function EVENT:Begin()
         end
     net.Broadcast()
 
-    -- if not timer.Exists("PokerStartTimeout") then
     timer.Create("PokerStartTimeout", GetDynamicRoundTimerValue("RoundStateStart"), 1, function()
         if EVENT_REF.Running then return end
 
@@ -139,7 +133,6 @@ function EVENT:Begin()
 
         EVENT_REF:StartGame()
     end)
-    -- end
 end
 
 -- Called after all players responded to the initial net message and any who haven't are removed
@@ -257,11 +250,8 @@ function EVENT:BeginBetting(optionalPlayer)
     if not self.Started then self:End() return end
 
     self.ExpectantBetter = nil
-    -- print("BeginBetting called", optionalPlayer, self.BigBlind.NextPlayer)
     if optionalPlayer and optionalPlayer.Status ~= BettingStatus.FOLD then
         self.ExpectantBetter = optionalPlayer
-    -- elseif self.Players[2].NextPlayer.Status ~= BettingStatus.FOLD then
-    --     self.ExpectantBetter = self.Players[2].NextPlayer
     else
         self.ExpectantBetter = GetNextValidPlayer(optionalPlayer or self.BigBlind)
     end
@@ -281,11 +271,7 @@ end
 
 local function AllPlayersMatchingBets(ignoreNoStatus)
     local betToCompare = 0
-    -- print("AllPlayersMatchingBets called")
-    -- PrintTable(EVENT_REF.Players)
-    -- print("Manual loop check:")
     for _, ply in ipairs(EVENT_REF.Players) do
-        -- print(ply:Nick(), "Status: " .. ply.Status)
         if ply.Status == BettingStatus.NONE and not ignoreNoStatus then
             return false
         end
@@ -317,7 +303,6 @@ local function GetHighestBet()
 end
 
 local function ResetOtherPlayersBetStatus(ply)
-    -- print("ResetOtherPlayersBetStatus called")
     for _, other in ipairs(EVENT_REF.Players) do
         if other ~= ply and other.Status ~= BettingStatus.FOLD then
             other.Status = BettingStatus.NONE
@@ -401,7 +386,6 @@ end
 function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
     if not self.Started then self:End() return end
     if not ply:IsValid() then return end
-    -- print("Register player bet")
 
     -- If we receive a bet when we're not expecting (and it isn't a fold), ignore it
     if not self.ExpectantBetter and bet > 1 and not forceBet then
@@ -409,7 +393,6 @@ function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
     end
 
     if ply == self.ExpectantBetter or forceBet then
-        -- print("\tdebug1")
         if ply == self.ExpectantBetter and timer.Exists("WaitingOnPlayerBet") then
             timer.Remove("WaitingOnPlayerBet")
         end
@@ -438,7 +421,6 @@ function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
         end
 
         if not forceBet then
-            -- print("\tChecking if all players have matching bets or are folded...")
             if AllPlayersMatchingBets() then
                 net.Start("PlayersFinishedBetting")
                 net.Broadcast()
@@ -530,7 +512,6 @@ function EVENT:RegisterPlayerDiscard(ply, discardsTable)
         for index, cardInHand in ipairs(ply.Cards) do
             if cardToRemove.Rank == cardInHand.Rank and cardToRemove.Suit == cardInHand.Suit then
                 toBeRemoved = index
-                -- break
             end
         end
 
@@ -558,14 +539,11 @@ function EVENT:CompletePlayerDiscarding()
 end
 
 function EVENT:CalculateWinner()
-    -- print("EVENT:CalculateWinner called")
     if not self.Started then self:End() return end
 
     local winner, hand = self:GetWinningPlayer()
-    -- print("calculated winner + hand:", winner, hand)
 
     if winner == nil then
-        -- Everyone died! Cancel the game
         net.Start("DeclareNoWinner")
         net.Broadcast()
     else
@@ -586,7 +564,6 @@ function EVENT:CalculateWinner()
     end)
 end
 
--- This is gonna get fuckinnnnnnnnn messy
 local function GetHandRank(ply)
     print("\nGetHandRank called DEBUG, player:", ply)
     local hand = ply.Cards
@@ -595,9 +572,7 @@ local function GetHandRank(ply)
     -- Check for flush
     local isFlush = true
     local suit = Suits.NONE
-    -- print("\tChecking for flush")
     for _, card in ipairs(hand) do
-        -- print("\t\tSuit:", card.Suit)
         if suit == Suits.NONE then
             suit = card.Suit
         elseif suit ~= card.Suit then
@@ -612,16 +587,14 @@ local function GetHandRank(ply)
     local isStraight = true
     local prevRank = Cards.NONE
     local handCopyAsc = table.Copy(hand)
-    -- print("\tChecking for straight")
     table.sort(handCopyAsc, function(cardOne, cardTwo)
         return cardOne.Rank < cardTwo.Rank
     end)
-    -- print("\tSorted hand:")
-    -- PrintHand(handCopyAsc, true)
+    
     for _, card in ipairs(handCopyAsc) do
         if prevRank == Cards.NONE then
             prevRank = card.Rank
-        elseif card.Rank ~= prevRank + 1 then -- or (prevRank == 1 and card.Rank ~= Cards.TEN) then
+        elseif card.Rank ~= prevRank + 1 then
             isStraight = false
 
             break
@@ -638,18 +611,16 @@ local function GetHandRank(ply)
     local hasPair = false
     local hasTwoPair = false
     local hasPairsRank = Cards.NONE
-    -- print("\tChecking for kinds")
     for _, card in ipairs(hand) do
         table.insert(suitsByRank[card.Rank], card.Suit)
     end
-    -- PrintTable(suitsByRank)
+
     for rank, tbl in ipairs(suitsByRank) do
         local count = #tbl
         local rankToCompare = rank
         if rank == Cards.ACE then rankToCompare = Cards.ACE_HIGH end
 
         if count == 2 then
-            -- print("\tpair of " .. rank .. "detected")
             if hasPair then
                 hasTwoPair = true
 
@@ -741,7 +712,6 @@ local function GetHandRank(ply)
 end
 
 function EVENT:GetWinningPlayer()
-    -- print("EVENT:GetWinningPlayer called")
     if not self.Started then self:End() return end
 
     local winningHandRank = Hands.NONE
@@ -752,7 +722,6 @@ function EVENT:GetWinningPlayer()
     local winningStr = ""
 
     local function AssignNewWinner(ply, newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, newStr)
-        -- print("\tAssignNewWinner called with args:", ply, newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, newStr)
         winningHandRank = newHandRank
         winningPlayer = ply
         winningHighestCardRank = newHighestCardRank
@@ -768,26 +737,21 @@ function EVENT:GetWinningPlayer()
 
         local newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, str = GetHandRank(ply)
         print("Hand rank values:\n", newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, str)
-        // print("\t" .. ply:Nick() .. " has:", newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, str)
         if newHandRank == Hands.NINE_OF_DIAMONDS then
-            // print("\t\tdebug1")
             print("\t\t9 of diamonds hit, immediately return, player is winner")
             return ply, str
         elseif newHandRank > winningHandRank then
-            // print("\t\tdebug2")
             print("\t\tHand is better", newHandRank, winningHandRank)
             AssignNewWinner(ply, newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, str)
         elseif newHandRank == winningHandRank then
             print("\t\tHand is identical")
             if newHighestCardRank > winningHighestCardRank then
-                // print("\t\tdebug3")
                 print("\t\tCard rank of hand is better")
                 AssignNewWinner(ply, newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, str)
             elseif newHighestCardRank == winningHighestCardRank then
                 print("\t\tCard rank of hand is identical")
                 if newAltHighestCardRank > winningAltHighestCardRank then
                     print("\t\tHigh card outside of hand is better")
-                    // print("\t\tdebug4")
                     AssignNewWinner(ply, newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, str)
                 elseif newAltHighestCardRank == winningAltHighestCardRank then
                     print("\t\tHigh card outside of hand is identical, looping rest of cards")
@@ -796,7 +760,6 @@ function EVENT:GetWinningPlayer()
                         if winningRanksTbl[i] > newRanksTbl[i] then
                             break
                         elseif winningRanksTbl[i] < newRanksTbl[i] then
-                            // print("\t\tdebug5")
                             AssignNewWinner(ply, newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, str)
                             break
                         end
@@ -825,30 +788,25 @@ end
 
 function EVENT:ApplyRewards(winner, winningHand)
     print("EVENT:ApplyRewards called, debug", winner)
-    // PrintTable(self.Players)
     if not self.Started then self:End() return end
     self.Started = false
 
     local runningHealth = 0
     for _, ply in pairs(self.Players) do
-        // print("\tloop check: player:", ply, ply ~= winner)
         if ply ~= winner and ply:Alive() then
-            // print("\tLoop check, not winner, their bet:", self.PlayerBets[ply])
             local bet = self.PlayerBets[ply] or 0
             local healthToLose = math.max(math.Round(ply:Health() * BetAsPercent(bet)), 0)
             runningHealth = runningHealth + healthToLose
 
             if bet > 0 then
                 if IsAllIn(bet) then
-                    -- print("\tkilling player...")
                     ply:Kill()
                 else
-                    -- print("\treducing health of player...")
                     ply:SetHealth(math.max(1, ply:Health() - healthToLose))
                     ply:SetMaxHealth(math.max(1, ply:GetMaxHealth() - healthToLose))
                 end
             else
-                -- Seems we somehow entered this at some point?
+                -- Seems we somehow entered this at some point? I think related to using Bots
                 ErrorNoHalt("Detected invalid bet", ply, bet)
             end
         end
@@ -968,8 +926,6 @@ function EVENT:GetConVars()
 end
 
 function EVENT:RemovePlayer(ply)
-    print("EVENT:RemovePlayer() called", ply, #self.Players, self.MinPlayers)
-    PrintTable(self.Players)
     table.remove(self.Players, table.KeyFromValue(self.Players, ply) or 0)
     self.PlayerBets[ply] = nil
 
@@ -1002,27 +958,6 @@ net.Receive("StartPokerRandomatCallback", function(len, ply)
         if AllPlayersReady(EVENT_REF.Players) then
             EVENT_REF:StartGame()
         end
-    // elseif EVENT_VARIANT.Started then
-    //     -- As above, so below
-    //     // if not timer.Exists("PokerStartTimeout") then
-    //     //     timer.Create("PokerStartTimeout", GetDynamicRoundTimerValue("RoundStateStart"), 1, function()
-    //     //         if EVENT_VARIANT.Running then return end
-
-    //     //         for index, unreadyPly in ipairs(EVENT_VARIANT.Players) do
-    //     //             if not unreadyPly.Ready then
-    //     //                 EVENT_VARIANT:RemovePlayer(unreadyPly)
-    //     //             end
-    //     //         end
-
-    //     //         EVENT_VARIANT:StartGame()
-    //     //     end)
-    //     // end
-
-    //     ply.Ready = true
-
-    //     if AllPlayersReady(EVENT_VARIANT.Players) then
-    //         EVENT_VARIANT:StartGame()
-    //     end
     end
 end)
 
@@ -1032,11 +967,6 @@ net.Receive("MakeBet", function(len, ply)
         local betAmt = net.ReadUInt(4)
 
         EVENT_REF:RegisterPlayerBet(ply, bet, betAmt)
-    // elseif EVENT_VARIANT.Started then
-    //     local bet = net.ReadUInt(3)
-    //     local betAmt = net.ReadUInt(4)
-        
-    //     EVENT_VARIANT:RegisterPlayerBet(ply, bet, betAmt)
     end
 end)
 
@@ -1055,38 +985,20 @@ net.Receive("MakeDiscard", function(len, ply)
         end
 
         EVENT_REF:RegisterPlayerDiscard(ply, cardsBeingDiscarded)
-    // elseif EVENT_VARIANT.Started then
-    //     if not EVENT_VARIANT.AcceptingDiscards then return end
-
-    //     local cardsBeingDiscarded = {}
-    //     local numCards = net.ReadUInt(2)
-
-    //     for i = 1, numCards do
-    //         table.insert(cardsBeingDiscarded, {
-    //             Rank = net.ReadUInt(5),
-    //             Suit = net.ReadUInt(3)
-    //         })
-    //     end
-
-    //     EVENT_VARIANT:RegisterPlayerDiscard(ply, cardsBeingDiscarded)
     end
 end)
 
 --// Hooks
 
 function HandlePokerPlayerDeath(ply)
-    if not ply or not IsValid(ply) or not EVENT or not EVENT.Started or not EVENT_VARIANT or not EVENT_VARIANT.Started then return end
+    print("HandlePokerPlayerDeath", ply, EVENT, EVENT.Started, EVENT_VARIANT, EVENT_VARIANT.Started)
+    if (not ply or not IsValid(ply)) or ((EVENT and not EVENT.Started) and (EVENT_VARIANT and not EVENT_VARIANT.Started)) then return end
 
     if EVENT_REF.Started then
         if table.HasValue(EVENT_REF.Players, ply) then
             EVENT_REF:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets.NONE)
             EVENT_REF:RemovePlayer(ply)
         end
-    // elseif EVENT_VARIANT.Started then
-    //     if table.HasValue(EVENT_VARIANT.Players, ply) then
-    //         EVENT_VARIANT:RegisterPlayerBet(ply, BettingStatus.FOLD, Bets_Alt.NONE)
-    //         EVENT_VARIANT:RemovePlayer(ply)
-    //     end
     end
 end
 
@@ -1125,21 +1037,20 @@ EVENT_VARIANT.id = "poker_colluding"
 EVENT_VARIANT.MinPlayers = 3
 
 function EVENT_VARIANT:StartGame()
-    if self.Started or EVENT_REF.Started then self:End() return end -- Difference
+    if not self.Started or EVENT.Started then return end -- Difference
+
+    net.Start("MarkRoundVariant") -- Difference
+    net.Broadcast()
 
     self:RefreshPlayers()
     self.Running = true
 
     self.SmallBlind = self.Players[(self.NumberOfGames % #self.Players) + 1]
     self.BigBlind = self.Players[((self.NumberOfGames + 1) % #self.Players) + 1]
-    print("event variant debug", self.SmallBlind, self.BigBlind, self)
-    PrintTable(self)
+
     self:RegisterPlayerBet(self.SmallBlind, BettingStatus.RAISE, GetLittleBlindBet(), true)
     self:RegisterPlayerBet(self.BigBlind, BettingStatus.RAISE, GetBigBlindBet(), true)
     self.BigBlind.Status = BettingStatus.NONE
-
-    net.Send("MarkRoundVariant")
-    net.Broadcast()
 
     net.Start("NotifyBlinds")
         net.WriteEntity(self.SmallBlind)
@@ -1179,6 +1090,21 @@ function EVENT_VARIANT:ShareHands()
                 net.WriteUInt(card.Suit, 3)
             end
         net.Send(ply1)
+    end
+end
+
+function EVENT_VARIANT:RemovePlayer(ply)
+    table.remove(self.Players, table.KeyFromValue(self.Players, ply) or 0)
+    self.PlayerBets[ply] = nil
+
+    -- Default min players is 3 since it makes the variant rules pointless to start the game with only two players (just play default)
+    -- However, Since each player's colluded "partner" is unknown, the game can continue with just two players should up to the third die
+    if #self.Players < 2 then -- Difference
+        self:End()
+        
+        for _, ply in ipairs(player.GetAll()) do
+            ply:ChatPrint("Too few players remain to continue the poker game, cancelling the poker game!")
+        end
     end
 end
 

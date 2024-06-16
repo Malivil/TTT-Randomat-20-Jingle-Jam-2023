@@ -14,6 +14,7 @@ local EventVariantSounds = {
 
 EVENT.Players = {}
 EVENT.Hand = {}
+EVENT.ExtraHand = {}
 EVENT.IsPlaying = false
 EVENT.CurrentlyBetting = false
 EVENT.ShouldPlayStartSound = true
@@ -36,6 +37,7 @@ function EVENT:SetupPanel(isContinuedGame)
             if ConVars.EnableYogsification:GetBool() then
                 timer.Simple(1, function()
                     local tbl = EventSounds
+                    print("Is variant mode?", self.IsVariantMode)
                     if self.IsVariantMode then tbl = EventVariantSounds end
 
                     surface.PlaySound(tbl[math.random(#tbl)])
@@ -72,16 +74,26 @@ function EVENT:ClosePanel()
         self.Close = nil
     end
 
+    if self.ExtraPokerHandFrame and self.ExtraPokerHandFrame:IsValid() then
+        for _, panel in ipairs(self.ExtraPokerHandFrame:GetChildren()) do
+            panel:Remove()
+            panel = nil
+        end
+
+        self.ExtraPokerHandFrame:Remove()
+        self.ExtraPokerHandFrame = nil
+    end
+
     self.Players = {}
     self.Hand = {}
+    self.ExtraHand = {}
     self.IsPlaying = false
     self.CurrentlyBetting = false
-    self.ShouldPlayStartSound = false
+    -- self.ShouldPlayStartSound = false
     self.IsVariantMode = false
 end
 
 function EVENT:RegisterPlayers(newPlayersTbl, selfIsIncluded, isContinuedGame)
-    -- local isContinuousPlay = #self.Players > 0
     self.IsPlaying = selfIsIncluded
     self.Players = newPlayersTbl
 
@@ -136,6 +148,8 @@ end
 
 function EVENT:SetupHand(newHand, isSecondDeal)
     if not self.PokerHand or not self.PokerHand:IsValid() then
+        print("SetupHand called")
+        PrintTable(newHand)
         self.PokerHand = vgui.Create("Poker_Hand", self.PokerMain)
         self.PokerHand:SetPos(0, self.PokerPlayers:GetTall() + self.PokerControls:GetTall() - 1)
         self.PokerHand:SetSize(self.PokerMain:GetWide(), 200)
@@ -177,7 +191,6 @@ function EVENT:StartBetting(ply, timeToBet)
         self.PokerControls:EnableBetting()
 
         if ConVars.EnableRoundStateAudioCues:GetBool() then
-            -- surface.PlaySound("common/wpn_select.wav")
             surface.PlaySound("poker/chips.ogg")
         end
     else
@@ -259,7 +272,7 @@ end
 
 function EVENT:EnableClose()
     self.Close = vgui.Create("DFrame", nil, "Poker Randomat Close Button")
-    self.Close:SetSize(70, 34) -- self:GetWide() * 0.5 - 65, 34
+    self.Close:SetSize(70, 34)
     self.Close:SetPos(ScrW() - (self.PokerMain:GetWide() * 0.5) - (self.Close:GetWide() * 0.5), 200 + self.PokerMain:GetTall() + 4)
     self.Close:ShowCloseButton(false)
     self.Close:SetTitle("")
@@ -272,6 +285,10 @@ function EVENT:EnableClose()
         if self then
             self:ClosePanel()
         end
+    end
+
+    if self.ExtraPokerHandFrame and self.ExtraPokerHandFrame:IsValid() then
+        self.Close:SetPos(ScrW() - (self.PokerMain:GetWide() * 0.5) - (self.Close:GetWide() * 0.5), 200 + self.PokerMain:GetTall() + 4 + self.ExtraPokerHandFrame:GetTall() + 4)
     end
 end
 
@@ -353,6 +370,7 @@ net.Receive("StartBetting", function()
 end)
 
 net.Receive("PlayerFolded", function()
+    print("received net message PlayerFolded")
     if not EVENT.IsPlaying then return end
 
     local foldingPlayer = net.ReadEntity()
@@ -397,11 +415,6 @@ net.Receive("StartDiscard", function()
     EVENT:BeginDiscarding(GetDynamicRoundTimerValue("RoundStateDiscarding"))
 end)
 
-net.Receive("RevealHands", function()
-    if not EVENT.IsPlaying then return end
-    --Currently unused on the serverside
-end)
-
 net.Receive("DeclareWinner", function()
     if not EVENT.IsPlaying then return end
 
@@ -434,6 +447,24 @@ end)
 
 --// Variant Event
 
+function EVENT:SetupExtraHand(extraHand)
+    if not self.ExtraPokerHandFrame or not self.ExtraPokerHandFrame:IsValid() then
+        self.ExtraPokerHandFrame = vgui.Create("DFrame", nil, "Poker Randomat Extra Hand Frame")
+        self.ExtraPokerHandFrame:SetSize(self.PokerMain:GetWide(), 160)
+        self.ExtraPokerHandFrame:SetPos(ScrW() - self.PokerMain:GetWide(), 200 + self.PokerMain:GetTall() + 4)
+        self.ExtraPokerHandFrame:ShowCloseButton(false)
+        self.ExtraPokerHandFrame:SetTitle("")
+
+        self.ExtraPokerHand = vgui.Create("Poker_Hand", self.ExtraPokerHandFrame)
+        self.ExtraPokerHand:SetPos(0, 0)
+        self.ExtraPokerHand:SetSize(self.ExtraPokerHandFrame:GetWide(), self.ExtraPokerHandFrame:GetTall())
+        self.ExtraPokerHand:SetTitle("Colluded Hand")
+    end
+
+    self.ExtraHand = extraHand
+    self.ExtraPokerHand:SetHand(extraHand)
+end
+
 net.Receive("MarkRoundVariant", function()
     EVENT.IsVariantMode = true
 end)
@@ -444,8 +475,10 @@ net.Receive("ShareCards", function()
     for i = 1, 5 do
         local rank = net.ReadUInt(5)
         local suit = net.ReadUInt(3)
-        table.insert(newHand, {Rank = rank, Suit = suit})
+        table.insert(colludingPlayerHand, {Rank = rank, Suit = suit})
     end
+    
+    EVENT:SetupExtraHand(colludingPlayerHand)
 end)
 
 --[[
@@ -459,9 +492,7 @@ end)
         * Seems to only be an issue with bots
 
     Feature Improvements:
-    - Need to finish variant mode
-    - Look at all 'TODO's
-    - Clean up unnecessary comments
+    - Final TODO in sv_poker
 
     Bugs:
     - 
