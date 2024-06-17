@@ -37,7 +37,6 @@ function EVENT:SetupPanel(isContinuedGame)
             if ConVars.EnableYogsification:GetBool() then
                 timer.Simple(1, function()
                     local tbl = EventSounds
-                    print("Is variant mode?", self.IsVariantMode)
                     if self.IsVariantMode then tbl = EventVariantSounds end
 
                     surface.PlaySound(tbl[math.random(#tbl)])
@@ -137,6 +136,7 @@ function EVENT:AlertBlinds(bigBlind, littleBlind)
     self.PokerPlayers:SetBlinds(littleBlind, bigBlind)
     self:RegisterBet(littleBlind, BettingStatus.RAISE, GetLittleBlindBet())
     self:RegisterBet(bigBlind, BettingStatus.RAISE, GetBigBlindBet())
+    self.PokerPlayers:ResetPlayerActions()
 end
 
 function EVENT:SetupControls()
@@ -148,8 +148,6 @@ end
 
 function EVENT:SetupHand(newHand, isSecondDeal)
     if not self.PokerHand or not self.PokerHand:IsValid() then
-        print("SetupHand called")
-        PrintTable(newHand)
         self.PokerHand = vgui.Create("Poker_Hand", self.PokerMain)
         self.PokerHand:SetPos(0, self.PokerPlayers:GetTall() + self.PokerControls:GetTall() - 1)
         self.PokerHand:SetSize(self.PokerMain:GetWide(), 200)
@@ -201,7 +199,7 @@ function EVENT:StartBetting(ply, timeToBet)
     self.PokerHand:SetCanDiscard(false)
 end
 
-function EVENT:RegisterBet(ply, betType, betAmount)
+function EVENT:RegisterBet(ply, betType, betAmount, plySteamId)
     if ply == LocalPlayer() then
         if betType == BettingStatus.FOLD then
             self.PokerMain:SetSelfFolded()
@@ -213,7 +211,7 @@ function EVENT:RegisterBet(ply, betType, betAmount)
     
         self.PokerMain:SetTimer(0)
     else
-        self.PokerPlayers:SetPlayerBet(ply, betType, betAmount or self.PokerControls:GetCurrentRaise())
+        self.PokerPlayers:SetPlayerBet(ply, betType, betAmount or self.PokerControls:GetCurrentRaise(), plySteamId)
 
         if betType == BettingStatus.RAISE and self.PokerControls and self.PokerControls:IsValid() and betAmount then
             self.PokerControls:SetCurrentRaise(betAmount)
@@ -235,6 +233,7 @@ function EVENT:BeginDiscarding(timeToDiscard)
     self.PokerMain:TemporaryMessage("Now, discard up to three cards!")
     self.PokerMain:SetTimer(timeToDiscard)
     self.PokerHand:SetCanDiscard(true)
+    self.PokerPlayers:ResetPlayerActions()
 
     if ConVars.EnableRoundStateAudioCues:GetBool() then
         surface.PlaySound("poker/shuffle.ogg")
@@ -243,8 +242,6 @@ end
 
 function EVENT:EndDiscard()
     self.PokerMain:SetTimer(0)
-    self.PokerMain:TemporaryMessage("Time's up, hand is locked in!")
-    self.PokerHand:SetCanDiscard(false)
 end
 
 function EVENT:RegisterWinner(winner, hand)
@@ -252,13 +249,13 @@ function EVENT:RegisterWinner(winner, hand)
         if winner == LocalPlayer() then
             self.PokerMain:PermanentMessage("You win! Getting your bonus health now!")
 
-            if ConVars.EnableYogsification:GetBool() then
+            if ConVars.EnableYogsification:GetBool() and self.ShouldPlayStartSound then
                 surface.PlaySound("poker/you_won.ogg")
             end
         else
             self.PokerMain:PermanentMessage(winner:Nick() .. " wins the hand with \n" .. hand .. "!")
 
-            if ConVars.EnableYogsification:GetBool() then
+            if ConVars.EnableYogsification:GetBool() and self.ShouldPlayStartSound  then
                 surface.PlaySound("poker/robbed.ogg")
             end
         end
@@ -345,6 +342,9 @@ end)
 
 net.Receive("DealCards", function()
     if not EVENT.IsPlaying then return end
+
+    EVENT:EndDiscard()
+
     local numCardsReceiving = net.ReadUInt(3)
     local newHand = {}
     for i = 1, numCardsReceiving do
@@ -370,12 +370,12 @@ net.Receive("StartBetting", function()
 end)
 
 net.Receive("PlayerFolded", function()
-    print("received net message PlayerFolded")
     if not EVENT.IsPlaying then return end
 
     local foldingPlayer = net.ReadEntity()
+    local foldingPlayerID = net.ReadString()
 
-    EVENT:RegisterBet(foldingPlayer, BettingStatus.FOLD)
+    EVENT:RegisterBet(foldingPlayer, BettingStatus.FOLD, nil, foldingPlayerID)
 end)
 
 net.Receive("PlayerChecked", function()
@@ -447,7 +447,7 @@ end)
 
 --// Variant Event
 
-function EVENT:SetupExtraHand(extraHand)
+function EVENT:SetupExtraHand(plyName, extraHand)
     if not self.ExtraPokerHandFrame or not self.ExtraPokerHandFrame:IsValid() then
         self.ExtraPokerHandFrame = vgui.Create("DFrame", nil, "Poker Randomat Extra Hand Frame")
         self.ExtraPokerHandFrame:SetSize(self.PokerMain:GetWide(), 160)
@@ -458,7 +458,12 @@ function EVENT:SetupExtraHand(extraHand)
         self.ExtraPokerHand = vgui.Create("Poker_Hand", self.ExtraPokerHandFrame)
         self.ExtraPokerHand:SetPos(0, 0)
         self.ExtraPokerHand:SetSize(self.ExtraPokerHandFrame:GetWide(), self.ExtraPokerHandFrame:GetTall())
-        self.ExtraPokerHand:SetTitle("Colluded Hand")
+
+        if ConVars.AnonymizeCollusions:GetBool() then
+            self.ExtraPokerHand:SetTitle("Colluded Hand")
+        else
+            self.ExtraPokerHand:SetTitle(plyName .. "'s Hand")
+        end
     end
 
     self.ExtraHand = extraHand
@@ -478,7 +483,7 @@ net.Receive("ShareCards", function()
         table.insert(colludingPlayerHand, {Rank = rank, Suit = suit})
     end
     
-    EVENT:SetupExtraHand(colludingPlayerHand)
+    EVENT:SetupExtraHand(colludingPlayer:Nick(), colludingPlayerHand)
 end)
 
 --[[
@@ -491,9 +496,6 @@ end)
     - It's possible if all other players die to earn negative bonus health, which does reduce your health
         * Seems to only be an issue with bots
 
-    Feature Improvements:
-    - Final TODO in sv_poker
-
     Bugs:
-    - 
+    - Sometimes colluded hand isn't showing up
 ]]

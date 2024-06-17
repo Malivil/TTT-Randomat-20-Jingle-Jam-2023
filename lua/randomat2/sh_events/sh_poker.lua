@@ -8,10 +8,14 @@ ConVars.RoundStateDiscarding = ConVars.RoundStateDiscarding or CreateConVar("ran
 ConVars.RoundStateMessage = ConVars.RoundStateMessage or CreateConVar("randomat_poker_round_state_message", "5", FCVAR_REPLICATED, "Manually overrides how long the round state messages should appear for", 1, 10)
 ConVars.RoundStateEnd = ConVars.RoundStateEnd or CreateConVar("randomat_poker_round_state_end", "5", FCVAR_REPLICATED, "Manually overrides how long the game outcome message lasts for (as well as how long to wait"
     .. " before starting a new round if continuous play is enabled)", 1, 60)
-ConVars.EnableYogsification = ConVars.EnableYogsification or CreateConVar("randomat_poker_enable_yogsification", "1", FCVAR_REPLICATED, "Enables the Yogscast gag/sfx")
+ConVars.EnableYogsification = ConVars.EnableYogsification or CreateConVar("randomat_poker_enable_yogsification", "1", FCVAR_REPLICATED, "Enables the Yogscast sfx")
 ConVars.EnableRoundStateAudioCues = ConVars.EnableRoundStateAudioCues or CreateConVar("randomat_poker_enable_audio_cues", "1", FCVAR_REPLICATED, "Enables the round state audio cues")
 ConVars.EnableContinuousPlay = ConVars.EnableContinuousPlay or CreateConVar("randomat_poker_enable_continuous_play", "0", FCVAR_REPLICATED, "Enables continuous play, event repeats until TTT game ends")
 ConVars.EnableSmallerBets = ConVars.EnableSmallerBets or CreateConVar("randomat_poker_enable_smaller_bets", "0", FCVAR_REPLICATED, "Enables smaller bet increments (default: 25-50-75-100, alt: 10-20-30-...-100)")
+ConVars.EnableNineDiamondsGag = ConVars.EnableNineDiamondsGag or CreateConVar("randomat_poker_enable_nine_diamonds", "1", FCVAR_REPLICATED, "Enables the 9 of Diamonds win condition gag")
+
+ConVars.EnableRandomCollusions = ConVars.EnableRandomCollusions or CreateConVar("randomat_poker_colluding_enable_random_collusions", "1", FCVAR_REPLICATED, "Enables whether your colluding partner should be randomized or ordered")
+ConVars.AnonymizeCollusions = ConVars.AnonymizeCollusions or CreateConVar("randomat_poker_colluding_anonymized_collusions", "1", FCVAR_REPLICATED, "Enables whether the colluding partner's name should be hidden")
 
 DynamicTimerPlayerCount = 0
 function GetDynamicRoundTimerValue(conVar)
@@ -179,7 +183,7 @@ local function RegularBetToString(bet)
     elseif bet == Bets.THREEQ then
         return "3/4"
     elseif bet == Bets.ALL then
-        return "ALL"
+        return "ALL-IN"
     else
         return ""
     end
@@ -189,7 +193,7 @@ local function AltBetToString(bet)
     if bet == Bets_Alt.NONE then
         return "NONE"
     elseif bet == Bets_Alt.ALL then
-        return "ALL"
+        return "ALL-IN"
     else
         return bet .. "0%"
     end

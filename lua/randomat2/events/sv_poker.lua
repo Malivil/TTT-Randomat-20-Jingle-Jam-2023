@@ -52,7 +52,7 @@ EVENT.PlayerBets = {}
 function EVENT:GeneratePlayers()
     local removedPlayers = {}
     local playersToPlay = {}
-    print("EVENT:GeneratePlayers called")
+
     -- If continuous play is enabled, return the previous player list, clean up any disconnected players, and add in as many new players as possible
     if ConVars.EnableContinuousPlay:GetBool() and #self.ContinuousPlayers > 0 then
         playersToPlay = table.Copy(self.ContinuousPlayers)
@@ -104,7 +104,7 @@ end
 -- Called when an event is started. Must be defined for an event to work.
 function EVENT:Begin()
     if self.Started then return end
-    print("EVENT:Begin called", self)
+
     self.Started = true
     self.NumberOfGames = self.NumberOfGames + 1
     EVENT_REF = self
@@ -113,6 +113,7 @@ function EVENT:Begin()
 
     for _, ply in ipairs(self.Players) do
         ply.Status = BettingStatus.NONE
+        ply.StoredSteamId = ply:SteamID64()
     end
 
     net.Start("StartPokerRandomat")
@@ -227,17 +228,13 @@ local function GetNextValidPlayer(ply)
     local startingPlayer = ply
     local toCheck = ply.NextPlayer
     local nextPlayer = nil
-    print("GetNextValidPlayer called")
+
     while nextPlayer == nil do
-        print("\t", toCheck, toCheck.Status)
         if toCheck.Status ~= BettingStatus.FOLD then
-            print("\tdebug1")
             nextPlayer = toCheck
         elseif toCheck == startingPlayer then
-            print("\tdebug2")
-            return
+            error("cannot find next valid player! " .. ply:Nick())
         else
-            print("\tdebug3")
             toCheck = toCheck.NextPlayer
         end
     end
@@ -311,16 +308,15 @@ local function ResetOtherPlayersBetStatus(ply)
 end
 
 local function PlayerFolds(ply)
-    print("Player folds", ply)
     ply.Status = BettingStatus.FOLD
 
     net.Start("PlayerFolded")
         net.WriteEntity(ply)
+        net.WriteString(ply.StoredSteamId)
     net.Broadcast()
 end
 
 local function PlayerChecks(ply)
-    print("Player checks", ply)
     ply.Status = BettingStatus.CHECK
     EVENT_REF.PlayerBets[ply] = GetHighestBet()
 
@@ -330,7 +326,6 @@ local function PlayerChecks(ply)
 end
 
 local function PlayerCalls(ply)
-    print("Player calls", ply)
     ply.Status = BettingStatus.CALL
     EVENT_REF.PlayerBets[ply] = GetHighestBet()
 
@@ -340,7 +335,6 @@ local function PlayerCalls(ply)
 end
 
 local function PlayerRaises(ply, raise)
-    print("Player raises", ply, raise)
     ply.Status = BettingStatus.RAISE
     ResetOtherPlayersBetStatus(ply)
     EVENT_REF.PlayerBets[ply] = raise
@@ -565,9 +559,7 @@ function EVENT:CalculateWinner()
 end
 
 local function GetHandRank(ply)
-    print("\nGetHandRank called DEBUG, player:", ply)
     local hand = ply.Cards
-    PrintHand(ply.Cards, true)
 
     -- Check for flush
     local isFlush = true
@@ -581,7 +573,6 @@ local function GetHandRank(ply)
             break
         end
     end
-    print("Is Flush:", isFlush, suit)
 
     -- Check for straights
     local isStraight = true
@@ -602,7 +593,6 @@ local function GetHandRank(ply)
             prevRank = card.Rank
         end
     end
-    print("Is Straight", isStraight)
 
     -- Check for kinds
     local suitsByRank = {{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}}
@@ -636,7 +626,6 @@ local function GetHandRank(ply)
             hasThreeRank = rankToCompare
         end
     end
-    print("Has Kinds", hasPair, hasThree, hasTwoPair, hasPairsRank, hasThreeRank)
 
     -- Get highest card rank
     local highestRank = Cards.NONE
@@ -645,7 +634,6 @@ local function GetHandRank(ply)
     else
         highestRank = handCopyAsc[5].Rank
     end
-    print("Highest card", highestRank)
 
     -- Get table of ranks (used specifically for comparing hands when winning hands are matching pairs or high cards)
     local rankTable = {}
@@ -657,7 +645,7 @@ local function GetHandRank(ply)
     -- Check possible hands in descending order --
 
     -- Any pair+ featuring a nine of diamonds
-    if ConVars.EnableYogsification:GetBool() and suitsByRank[Cards.NINE] and #suitsByRank[Cards.NINE] > 1 and table.HasValue(suitsByRank[Cards.NINE], Suits.DIAMONDS) then
+    if ConVars.EnableNineDiamondsGag:GetBool() and suitsByRank[Cards.NINE] and #suitsByRank[Cards.NINE] > 1 and table.HasValue(suitsByRank[Cards.NINE], Suits.DIAMONDS) then
         return Hands.NINE_OF_DIAMONDS, 0, 0, {}, "Two+ of a kind with a 9 of diamonds"
     end
 
@@ -736,27 +724,18 @@ function EVENT:GetWinningPlayer()
         end
 
         local newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, str = GetHandRank(ply)
-        print("Hand rank values:\n", newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, str)
         if newHandRank == Hands.NINE_OF_DIAMONDS then
-            print("\t\t9 of diamonds hit, immediately return, player is winner")
             return ply, str
         elseif newHandRank > winningHandRank then
-            print("\t\tHand is better", newHandRank, winningHandRank)
             AssignNewWinner(ply, newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, str)
         elseif newHandRank == winningHandRank then
-            print("\t\tHand is identical")
             if newHighestCardRank > winningHighestCardRank then
-                print("\t\tCard rank of hand is better")
                 AssignNewWinner(ply, newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, str)
             elseif newHighestCardRank == winningHighestCardRank then
-                print("\t\tCard rank of hand is identical")
                 if newAltHighestCardRank > winningAltHighestCardRank then
-                    print("\t\tHigh card outside of hand is better")
                     AssignNewWinner(ply, newHandRank, newHighestCardRank, newAltHighestCardRank, newRanksTbl, str)
                 elseif newAltHighestCardRank == winningAltHighestCardRank then
-                    print("\t\tHigh card outside of hand is identical, looping rest of cards")
                     for i = 4, 1, -1 do -- Cards should be in ascending order
-                        print("\t\t\t", winningRanksTbl[i], newRanksTbl[i])
                         if winningRanksTbl[i] > newRanksTbl[i] then
                             break
                         elseif winningRanksTbl[i] < newRanksTbl[i] then
@@ -764,17 +743,11 @@ function EVENT:GetWinningPlayer()
                             break
                         end
                     end
-                else
-                    print("\t\tHigh card outside of hand is worse")
                 end
-            else
-                print("\t\tCard rank of hand is worse")
             end
-        else
-            print("\t\tHand is worse")
         end
     end
-    print("Winning player:", winningPlayer, winningStr)
+
     return winningPlayer, winningStr
 end
 
@@ -787,7 +760,6 @@ local function BetAsPercent(bet)
 end
 
 function EVENT:ApplyRewards(winner, winningHand)
-    print("EVENT:ApplyRewards called, debug", winner)
     if not self.Started then self:End() return end
     self.Started = false
 
@@ -872,7 +844,7 @@ function EVENT:GetConVars()
 
     table.insert(sliders, {
         cmd = "round_state_start",
-        dsc = "[DEV] Manual game start wait window duration",
+        dsc = "Manual 'client timeout' duration",
         min = ConVars.RoundStateStart:GetMin(),
         max = ConVars.RoundStateStart:GetMax()
     })
@@ -890,7 +862,7 @@ function EVENT:GetConVars()
     })
     table.insert(sliders, {
         cmd = "round_state_message",
-        dsc = "Manual state phrase message duration",
+        dsc = "Manual message duration (should be smaller than all phase durations)",
         min = ConVars.RoundStateMessage:GetMin(),
         max = ConVars.RoundStateMessage:GetMax()
     })
@@ -911,15 +883,19 @@ function EVENT:GetConVars()
     })
     table.insert(checks, {
         cmd = "enable_smaller_bets",
-        dsc = "Changes bet increments from the default 25% to 10%"
+        dsc = "Reduce bet increments from (default) 25% to 10%"
+    })
+    table.insert(checks, {
+        cmd = "enable_nine_diamonds",
+        dsc = "Enable the 9 of Diamonds win condition"
     })
     table.insert(checks, {
         cmd = "enable_yogsification",
-        dsc = "Enable the Yogscast gag & sfx"
+        dsc = "Enable the Yogscast sfx"
     })
     table.insert(checks, {
         cmd = "enable_audio_cues",
-        dsc = "Enable the round state audio cues"
+        dsc = "Enable the round state audio cues (disabling overrides yogsification state)"
     })
 
     return sliders, checks, textboxes
@@ -952,7 +928,6 @@ end
 
 net.Receive("StartPokerRandomatCallback", function(len, ply)
     if EVENT_REF.Started and not EVENT_REF.Running then
-        -- TODO It's possible the client freezes for longer than 5 seconds and still tries to run this after it unfreezes, which could cause issues. Might need a new property to track this
         ply.Ready = true
 
         if AllPlayersReady(EVENT_REF.Players) then
@@ -991,7 +966,6 @@ end)
 --// Hooks
 
 function HandlePokerPlayerDeath(ply)
-    print("HandlePokerPlayerDeath", ply, EVENT, EVENT.Started, EVENT_VARIANT, EVENT_VARIANT.Started)
     if (not ply or not IsValid(ply)) or ((EVENT and not EVENT.Started) and (EVENT_VARIANT and not EVENT_VARIANT.Started)) then return end
 
     if EVENT_REF.Started then
@@ -1002,12 +976,25 @@ function HandlePokerPlayerDeath(ply)
     end
 end
 
-hook.Add("PlayerDisconnected", "Alter Poker Randomat If Player Leaves", HandlePokerPlayerDeath)
 hook.Add("PlayerDeath", "Player Death Folds In Poker", HandlePokerPlayerDeath)
 hook.Add("PlayerSilentDeath", "Silent Player Death Folds In Poker", HandlePokerPlayerDeath)
 
+hook.Add("PlayerDisconnected", "Alter Poker Randomat If Player Leaves", function(ply)
+    if (not ply or not IsValid(ply)) or ((EVENT and not EVENT.Started) and (EVENT_VARIANT and not EVENT_VARIANT.Started)) then return end
+
+    if EVENT_REF.Started then
+        local prevPlayer = ply.PrevPlayer
+        local nextPlayer = ply.NextPlayer
+
+        prevPlayer.NextPlayer = nextPlayer
+        nextPlayer.PrevPlayer = prevPlayer
+
+        HandlePokerPlayerDeath(ply)
+    end
+end)
+
 hook.Add("PlayerSay", "LoganDebugCommands", function(ply, msg)
-    if EVENT_REF.Started and ply:IsAdmin() then // ply:SteamID64() == "76561198029935530" then
+    if EVENT_REF.Started and ply:IsSuperAdmin() then // ply:SteamID64() == "76561198029935530" then
         local stringSplit = string.Split(string.lower(msg), " ")
         local stringCheck = stringSplit[1]
 
@@ -1073,9 +1060,17 @@ function EVENT_VARIANT:GenerateCollusions()
     local playerCount = #self.Players
     self.ColludingPlayers = {}
 
-    -- We're keeping this nice and simple
-    for _, ply in ipairs(self.Players) do
-        self.ColludingPlayers[ply] = ply.PrevPlayer
+    if ConVars.EnableRandomCollusions:GetBool() then
+        local randomPlayers = table.Copy(self.Players)
+        table.Shuffle(randomPlayers)
+
+        for i, ply in pairs(randomPlayers) do
+            self.ColludingPlayers[ply] = randomPlayers[(i + 1) % #randomPlayers]
+        end
+    else
+        for _, ply in pairs(self.Players) do
+            self.ColludingPlayers[ply] = ply.PrevPlayer
+        end
     end
 end
 
@@ -1108,7 +1103,34 @@ function EVENT_VARIANT:RemovePlayer(ply)
     end
 end
 
+function EVENT_VARIANT:CompletePlayerDiscarding()
+    timer.Remove("AcceptDiscards")
+    self.AcceptingDiscards = false
+    self.HaveDiscarded = true
+
+    self:DealDeck(true)
+    self:ShareHands() -- Difference
+
+    timer.Simple(GetDynamicRoundTimerValue("RoundStateMessage"), function()
+        self:BeginSecoundRoundBetting()
+    end)
+end
+
 function EVENT_VARIANT:GetConVars()
+    local sliders = {}
+    local checks = {}
+    local textboxes = {}
+
+    table.insert(checks, {
+        cmd = "enable_random_collusions",
+        dsc = "Enable random (versus ordered) collusion partners"
+    })
+    table.insert(checks, {
+        cmd = "anonymized_collusions",
+        dsc = "Hides the collusion partner's name"
+    })
+
+    return sliders, checks, textboxes
 end
 
 Randomat:register(EVENT_VARIANT)
