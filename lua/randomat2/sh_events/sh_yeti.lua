@@ -2,14 +2,6 @@ YETI = {
     registered = false
 }
 
-if SERVER then
-    resource.AddFile("materials/vgui/ttt/roles/yeti/icon_yeti.vmt")
-    resource.AddFile("materials/vgui/ttt/roles/yeti/sprite_yeti.vmt")
-    resource.AddSingleFile("materials/vgui/ttt/roles/yeti/sprite_yeti_noz.vmt")
-    resource.AddSingleFile("materials/vgui/ttt/roles/yeti/score_yeti.png")
-    resource.AddSingleFile("materials/vgui/ttt/roles/yeti/tab_yeti.png")
-end
-
 function YETI:RegisterRole()
     if self.registered then return end
 
