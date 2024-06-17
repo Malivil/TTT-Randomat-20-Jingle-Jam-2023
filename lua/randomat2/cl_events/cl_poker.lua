@@ -495,7 +495,4 @@ end)
         * Seems to break a lot of other functionality
     - It's possible if all other players die to earn negative bonus health, which does reduce your health
         * Seems to only be an issue with bots
-
-    Bugs:
-    - Sometimes colluded hand isn't showing up
 ]]
