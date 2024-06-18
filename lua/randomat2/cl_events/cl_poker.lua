@@ -32,9 +32,9 @@ function EVENT:SetupPanel(isContinuedGame)
     self.PokerPlayers:SetSize(self.PokerMain:GetWide(), 200)
     self.PokerPlayers:SetPlayers(self.Players)
 
-    if ConVars.EnableRoundStateAudioCues:GetBool() then
+    if PokerConVars.EnableRoundStateAudioCues:GetBool() then
         if self.ShouldPlayStartSound then
-            if ConVars.EnableYogsification:GetBool() then
+            if PokerConVars.EnableYogsification:GetBool() then
                 timer.Simple(1, function()
                     local tbl = EventSounds
                     if self.IsVariantMode then tbl = EventVariantSounds end
@@ -88,7 +88,6 @@ function EVENT:ClosePanel()
     self.ExtraHand = {}
     self.IsPlaying = false
     self.CurrentlyBetting = false
-    -- self.ShouldPlayStartSound = false
     self.IsVariantMode = false
 end
 
@@ -106,7 +105,7 @@ function EVENT:AlertBlinds(bigBlind, littleBlind)
 
     if bigBlind == self.Self then
         local amount = ""
-        if ConVars.EnableSmallerBets:GetBool() then
+        if PokerConVars.EnableSmallerBets:GetBool() then
             amount = "20%"
         else
             amount = "Half"
@@ -121,7 +120,7 @@ function EVENT:AlertBlinds(bigBlind, littleBlind)
 
     if littleBlind == self.Self then
         local amount = ""
-        if ConVars.EnableSmallerBets:GetBool() then
+        if PokerConVars.EnableSmallerBets:GetBool() then
             amount = "10%"
         else
             amount = "A quarter"
@@ -188,7 +187,7 @@ function EVENT:StartBetting(ply, timeToBet)
         self.PokerMain:SetTimer(timeToBet)
         self.PokerControls:EnableBetting()
 
-        if ConVars.EnableRoundStateAudioCues:GetBool() then
+        if PokerConVars.EnableRoundStateAudioCues:GetBool() then
             surface.PlaySound("poker/chips.ogg")
         end
     else
@@ -200,7 +199,7 @@ function EVENT:StartBetting(ply, timeToBet)
 end
 
 function EVENT:RegisterBet(ply, betType, betAmount, plySteamId)
-    if ply == LocalPlayer() then
+    if ply == self.Self then
         if betType == BettingStatus.FOLD then
             self.PokerMain:SetSelfFolded()
             self:EnableClose()
@@ -235,7 +234,7 @@ function EVENT:BeginDiscarding(timeToDiscard)
     self.PokerHand:SetCanDiscard(true)
     self.PokerPlayers:ResetPlayerActions()
 
-    if ConVars.EnableRoundStateAudioCues:GetBool() then
+    if PokerConVars.EnableRoundStateAudioCues:GetBool() then
         surface.PlaySound("poker/shuffle.ogg")
     end
 end
@@ -246,16 +245,16 @@ end
 
 function EVENT:RegisterWinner(winner, hand)
     if winner then
-        if winner == LocalPlayer() then
+        if winner == self.Self then
             self.PokerMain:PermanentMessage("You win! Getting your bonus health now!")
 
-            if ConVars.EnableYogsification:GetBool() and self.ShouldPlayStartSound then
+            if PokerConVars.EnableYogsification:GetBool() and PokerConVars.EnableRoundStateAudioCues:GetBool() and self.ShouldPlayStartSound then
                 surface.PlaySound("poker/you_won.ogg")
             end
         else
             self.PokerMain:PermanentMessage(winner:Nick() .. " wins the hand with \n" .. hand .. "!")
 
-            if ConVars.EnableYogsification:GetBool() and self.ShouldPlayStartSound  then
+            if PokerConVars.EnableYogsification:GetBool() and PokerConVars.EnableRoundStateAudioCues:GetBool() and self.ShouldPlayStartSound  then
                 surface.PlaySound("poker/robbed.ogg")
             end
         end
@@ -321,7 +320,7 @@ net.Receive("BeginPokerRandomat", function()
     end
 
     if selfIsPlaying then
-        while players[1] ~= LocalPlayer() do
+        while players[1] ~= EVENT.Self do
             table.insert(players, table.remove(players, 1))
         end
     end
@@ -459,7 +458,7 @@ function EVENT:SetupExtraHand(plyName, extraHand)
         self.ExtraPokerHand:SetPos(0, 0)
         self.ExtraPokerHand:SetSize(self.ExtraPokerHandFrame:GetWide(), self.ExtraPokerHandFrame:GetTall())
 
-        if ConVars.AnonymizeCollusions:GetBool() then
+        if PokerConVars.AnonymizeCollusions:GetBool() then
             self.ExtraPokerHand:SetTitle("Colluded Hand")
         else
             self.ExtraPokerHand:SetTitle(plyName .. "'s Hand")

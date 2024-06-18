@@ -1,26 +1,26 @@
 -- Logan Christianson
 
-ConVars = ConVars or {}
-ConVars.ManualRoundStateTimes = ConVars.ManualRoundStateTimes or CreateConVar("randomat_poker_manual_round_state_times", "0", FCVAR_REPLICATED, "Enables use of the various 'RoundState*' ConVars")
-ConVars.RoundStateStart = ConVars.RoundStateStart or CreateConVar("randomat_poker_round_state_start", "5", FCVAR_REPLICATED, "Manually overrides how long clients have to repond to the initial game start", 1, 10)
-ConVars.RoundStateBetting = ConVars.RoundStateBetting or CreateConVar("randomat_poker_round_state_betting", "30", FCVAR_REPLICATED, "Manually overrides how long the 'betting' phase of the round lasts", 5, 60)
-ConVars.RoundStateDiscarding = ConVars.RoundStateDiscarding or CreateConVar("randomat_poker_round_state_discarding", "30", FCVAR_REPLICATED, "Manually overrides how long the 'discarding' phase of the round lasts", 5, 60)
-ConVars.RoundStateMessage = ConVars.RoundStateMessage or CreateConVar("randomat_poker_round_state_message", "5", FCVAR_REPLICATED, "Manually overrides how long the round state messages should appear for", 1, 10)
-ConVars.RoundStateEnd = ConVars.RoundStateEnd or CreateConVar("randomat_poker_round_state_end", "5", FCVAR_REPLICATED, "Manually overrides how long the game outcome message lasts for (as well as how long to wait"
+PokerConVars = PokerConVars or {}
+PokerConVars.ManualRoundStateTimes = PokerConVars.ManualRoundStateTimes or CreateConVar("randomat_poker_manual_round_state_times", "0", FCVAR_REPLICATED, "Enables use of the various 'RoundState*' PokerConVars")
+PokerConVars.RoundStateStart = PokerConVars.RoundStateStart or CreateConVar("randomat_poker_round_state_start", "5", FCVAR_REPLICATED, "Manually overrides how long clients have to repond to the initial game start", 1, 10)
+PokerConVars.RoundStateBetting = PokerConVars.RoundStateBetting or CreateConVar("randomat_poker_round_state_betting", "30", FCVAR_REPLICATED, "Manually overrides how long the 'betting' phase of the round lasts", 5, 60)
+PokerConVars.RoundStateDiscarding = PokerConVars.RoundStateDiscarding or CreateConVar("randomat_poker_round_state_discarding", "30", FCVAR_REPLICATED, "Manually overrides how long the 'discarding' phase of the round lasts", 5, 60)
+PokerConVars.RoundStateMessage = PokerConVars.RoundStateMessage or CreateConVar("randomat_poker_round_state_message", "5", FCVAR_REPLICATED, "Manually overrides how long the round state messages should appear for", 1, 10)
+PokerConVars.RoundStateEnd = PokerConVars.RoundStateEnd or CreateConVar("randomat_poker_round_state_end", "5", FCVAR_REPLICATED, "Manually overrides how long the game outcome message lasts for (as well as how long to wait"
     .. " before starting a new round if continuous play is enabled)", 1, 60)
-ConVars.EnableYogsification = ConVars.EnableYogsification or CreateConVar("randomat_poker_enable_yogsification", "1", FCVAR_REPLICATED, "Enables the Yogscast sfx")
-ConVars.EnableRoundStateAudioCues = ConVars.EnableRoundStateAudioCues or CreateConVar("randomat_poker_enable_audio_cues", "1", FCVAR_REPLICATED, "Enables the round state audio cues")
-ConVars.EnableContinuousPlay = ConVars.EnableContinuousPlay or CreateConVar("randomat_poker_enable_continuous_play", "0", FCVAR_REPLICATED, "Enables continuous play, event repeats until TTT game ends")
-ConVars.EnableSmallerBets = ConVars.EnableSmallerBets or CreateConVar("randomat_poker_enable_smaller_bets", "0", FCVAR_REPLICATED, "Enables smaller bet increments (default: 25-50-75-100, alt: 10-20-30-...-100)")
-ConVars.EnableNineDiamondsGag = ConVars.EnableNineDiamondsGag or CreateConVar("randomat_poker_enable_nine_diamonds", "1", FCVAR_REPLICATED, "Enables the 9 of Diamonds win condition gag")
+PokerConVars.EnableYogsification = PokerConVars.EnableYogsification or CreateConVar("randomat_poker_enable_yogsification", "1", FCVAR_REPLICATED, "Enables the Yogscast sfx")
+PokerConVars.EnableRoundStateAudioCues = PokerConVars.EnableRoundStateAudioCues or CreateConVar("randomat_poker_enable_audio_cues", "1", FCVAR_REPLICATED, "Enables the round state audio cues")
+PokerConVars.EnableContinuousPlay = PokerConVars.EnableContinuousPlay or CreateConVar("randomat_poker_enable_continuous_play", "0", FCVAR_REPLICATED, "Enables continuous play, event repeats until TTT game ends")
+PokerConVars.EnableSmallerBets = PokerConVars.EnableSmallerBets or CreateConVar("randomat_poker_enable_smaller_bets", "0", FCVAR_REPLICATED, "Enables smaller bet increments (default: 25-50-75-100, alt: 10-20-30-...-100)")
+PokerConVars.EnableNineDiamondsGag = PokerConVars.EnableNineDiamondsGag or CreateConVar("randomat_poker_enable_nine_diamonds", "1", FCVAR_REPLICATED, "Enables the 9 of Diamonds win condition gag")
 
-ConVars.EnableRandomCollusions = ConVars.EnableRandomCollusions or CreateConVar("randomat_poker_colluding_enable_random_collusions", "1", FCVAR_REPLICATED, "Enables whether your colluding partner should be randomized or ordered")
-ConVars.AnonymizeCollusions = ConVars.AnonymizeCollusions or CreateConVar("randomat_poker_colluding_anonymized_collusions", "1", FCVAR_REPLICATED, "Enables whether the colluding partner's name should be hidden")
+PokerConVars.EnableRandomCollusions = PokerConVars.EnableRandomCollusions or CreateConVar("randomat_poker_colluding_enable_random_collusions", "1", FCVAR_REPLICATED, "Enables whether your colluding partner should be randomized or ordered")
+PokerConVars.AnonymizeCollusions = PokerConVars.AnonymizeCollusions or CreateConVar("randomat_poker_colluding_anonymized_collusions", "1", FCVAR_REPLICATED, "Enables whether the colluding partner's name should be hidden")
 
 DynamicTimerPlayerCount = 0
 function GetDynamicRoundTimerValue(conVar)
-    if ConVars.ManualRoundStateTimes:GetBool() then
-        return ConVars[conVar]:GetInt()
+    if PokerConVars.ManualRoundStateTimes:GetBool() then
+        return PokerConVars[conVar]:GetInt()
     elseif ({RoundStateMessage = true, RoundStateStart = true, RoundStateEnd = true})[conVar] then
         return 5
     else
@@ -200,7 +200,7 @@ local function AltBetToString(bet)
 end
 
 function BetToString(bet)
-    if ConVars.EnableSmallerBets:GetBool() then
+    if PokerConVars.EnableSmallerBets:GetBool() then
         return AltBetToString(bet)
     else
         return RegularBetToString(bet)
@@ -226,7 +226,7 @@ function BetStatusToString(bettingStatus)
 end
 
 function GetLittleBlindBet()
-    if ConVars.EnableSmallerBets:GetBool() then
+    if PokerConVars.EnableSmallerBets:GetBool() then
         return Bets_Alt.TEN
     else
         return Bets.QUARTER
@@ -234,7 +234,7 @@ function GetLittleBlindBet()
 end
 
 function GetBigBlindBet()
-    if ConVars.EnableSmallerBets:GetBool() then
+    if PokerConVars.EnableSmallerBets:GetBool() then
         return Bets_Alt.TWENTY
     else
         return Bets.HALF
@@ -242,7 +242,7 @@ function GetBigBlindBet()
 end
 
 function IsAllIn(bet)
-    if ConVars.EnableSmallerBets:GetBool() then
+    if PokerConVars.EnableSmallerBets:GetBool() then
         return bet == Bets_Alt.ALL
     else
         return bet == Bets.ALL

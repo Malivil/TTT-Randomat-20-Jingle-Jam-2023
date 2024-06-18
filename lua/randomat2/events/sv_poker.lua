@@ -31,7 +31,7 @@ EVENT.Title = "A Round Of Yogscast Poker"
 EVENT.Description = "Only if the 9 of Diamonds touch!"
 EVENT.ExtDescription = "A round of 5-Card Draw Poker (no Texas Hold 'Em, for my sake), bet with your\nhealth. Up to 7 may play. Any pair, three, or four of a kind containing the 9 of\nDiamonds instantly wins."
 EVENT.id = "poker"
-EVENT.MinPlayers = 2
+EVENT.MinPlayers = {Min = 2}
 EVENT.Type = EVENT_TYPE_DEFAULT
 EVENT.Categories = {"gamemode", "largeimpact", "fun"}
 
@@ -54,12 +54,12 @@ function EVENT:GeneratePlayers()
     local playersToPlay = {}
 
     -- If continuous play is enabled, return the previous player list, clean up any disconnected players, and add in as many new players as possible
-    if ConVars.EnableContinuousPlay:GetBool() and #self.ContinuousPlayers > 0 then
+    if PokerConVars.EnableContinuousPlay:GetBool() and #self.ContinuousPlayers > 0 then
         playersToPlay = table.Copy(self.ContinuousPlayers)
 
         local playersToRemove = {}
         for _, ply in ipairs(playersToPlay) do
-            if !IsValid(ply) or !ply:IsValid() or not ply:Alive() then
+            if not IsValid(ply) or not ply:Alive() then
                 table.insert(playersToRemove, ply)
             end
         end
@@ -170,7 +170,7 @@ function EVENT:StartGame()
     self:GenerateDeck()
     self:DealDeck()
 
-    timer.Simple(GetDynamicRoundTimerValue("RoundStateMessage"), function()
+    timer.Create("CallBeginBetting", GetDynamicRoundTimerValue("RoundStateMessage"), 1, function()
         self:BeginBetting(self.BigBlind.NextPlayer)
     end)
 end
@@ -379,7 +379,7 @@ end
 -- Called to register a player's bet (or lack thereof)
 function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
     if not self.Started then self:End() return end
-    if not ply:IsValid() then return end
+    if not IsValid(ply) then return end
 
     -- If we receive a bet when we're not expecting (and it isn't a fold), ignore it
     if not self.ExpectantBetter and bet > 1 and not forceBet then
@@ -437,7 +437,7 @@ function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
                 net.Start("DeclareNoWinner")
                 net.Broadcast()
 
-                timer.Simple(GetDynamicRoundTimerValue("RoundStateMessage"), function()
+                timer.Create("CallEventEnd", GetDynamicRoundTimerValue("RoundStateMessage"), 1, function()
                     self:End()
                 end)
             end
@@ -446,7 +446,7 @@ function EVENT:RegisterPlayerBet(ply, bet, betAmount, forceBet)
 end
 
 function EVENT:EndBetting()
-    timer.Simple(GetDynamicRoundTimerValue("RoundStateMessage"), function()
+    timer.Create("CallEndBetting", GetDynamicRoundTimerValue("RoundStateMessage"), 1, function()
         local epr = EnoughPlayersRemaining() -- This function needs to be ran BEFORE changing player's Status property
 
         for _, ply in ipairs(self.Players) do
@@ -527,7 +527,7 @@ function EVENT:CompletePlayerDiscarding()
 
     self:DealDeck(true)
 
-    timer.Simple(GetDynamicRoundTimerValue("RoundStateMessage"), function()
+    timer.Create("CallBeginSecondRoundBetting", GetDynamicRoundTimerValue("RoundStateMessage"), 1, function()
         self:BeginSecoundRoundBetting()
     end)
 end
@@ -549,8 +549,8 @@ function EVENT:CalculateWinner()
         self:ApplyRewards(winner, hand)
     end
 
-    timer.Simple(GetDynamicRoundTimerValue("RoundStateEnd"), function()
-        if ConVars.EnableContinuousPlay:GetBool() and GetRoundState() == ROUND_ACTIVE then
+    timer.Create("CallRoundEnd", GetDynamicRoundTimerValue("RoundStateEnd"), 1, function()
+        if PokerConVars.EnableContinuousPlay:GetBool() and GetRoundState() == ROUND_ACTIVE then
             self:ContinuousPlay()
         else
             self:End()
@@ -645,7 +645,7 @@ local function GetHandRank(ply)
     -- Check possible hands in descending order --
 
     -- Any pair+ featuring a nine of diamonds
-    if ConVars.EnableNineDiamondsGag:GetBool() and suitsByRank[Cards.NINE] and #suitsByRank[Cards.NINE] > 1 and table.HasValue(suitsByRank[Cards.NINE], Suits.DIAMONDS) then
+    if PokerConVars.EnableNineDiamondsGag:GetBool() and suitsByRank[Cards.NINE] and #suitsByRank[Cards.NINE] > 1 and table.HasValue(suitsByRank[Cards.NINE], Suits.DIAMONDS) then
         return Hands.NINE_OF_DIAMONDS, 0, 0, {}, "Two+ of a kind with a 9 of diamonds"
     end
 
@@ -752,7 +752,7 @@ function EVENT:GetWinningPlayer()
 end
 
 local function BetAsPercent(bet)
-    if ConVars.EnableSmallerBets:GetBool() then
+    if PokerConVars.EnableSmallerBets:GetBool() then
         return bet * 0.10
     else
         return bet * 0.25
@@ -777,9 +777,6 @@ function EVENT:ApplyRewards(winner, winningHand)
                     ply:SetHealth(math.max(1, ply:Health() - healthToLose))
                     ply:SetMaxHealth(math.max(1, ply:GetMaxHealth() - healthToLose))
                 end
-            else
-                -- Seems we somehow entered this at some point? I think related to using Bots
-                ErrorNoHalt("Detected invalid bet", ply, bet)
             end
         end
     end
@@ -808,6 +805,15 @@ function EVENT:ResetProperties()
     self.PlayerBets = {}
     self.SmallBlind = nil
     self.BigBlind = nil
+
+    timer.Remove("PokerStartTimeout")
+    timer.Remove("WaitingOnPlayerBet")
+    timer.Remove("AcceptDiscards")
+    timer.Remove("CallEventEnd")
+    timer.Remove("CallEndBetting")
+    timer.Remove("CallBeginBetting")
+    timer.Remove("CallBeginSecondRoundBetting")
+    timer.Remove("CallRoundEnd")
 
     for _, ply in ipairs(player.GetAll()) do
         ply.Cards = {}
@@ -845,32 +851,32 @@ function EVENT:GetConVars()
     table.insert(sliders, {
         cmd = "round_state_start",
         dsc = "Manual 'client timeout' duration",
-        min = ConVars.RoundStateStart:GetMin(),
-        max = ConVars.RoundStateStart:GetMax()
+        min = PokerConVars.RoundStateStart:GetMin(),
+        max = PokerConVars.RoundStateStart:GetMax()
     })
     table.insert(sliders, {
         cmd = "round_state_betting",
         dsc = "Manual 'betting' phase duration",
-        min = ConVars.RoundStateBetting:GetMin(),
-        max = ConVars.RoundStateBetting:GetMax()
+        min = PokerConVars.RoundStateBetting:GetMin(),
+        max = PokerConVars.RoundStateBetting:GetMax()
     })
     table.insert(sliders, {
         cmd = "round_state_discarding",
         dsc = "Manual 'discarding' phase duration",
-        min = ConVars.RoundStateDiscarding:GetMin(),
-        max = ConVars.RoundStateDiscarding:GetMax()
+        min = PokerConVars.RoundStateDiscarding:GetMin(),
+        max = PokerConVars.RoundStateDiscarding:GetMax()
     })
     table.insert(sliders, {
         cmd = "round_state_message",
         dsc = "Manual message duration (should be smaller than all phase durations)",
-        min = ConVars.RoundStateMessage:GetMin(),
-        max = ConVars.RoundStateMessage:GetMax()
+        min = PokerConVars.RoundStateMessage:GetMin(),
+        max = PokerConVars.RoundStateMessage:GetMax()
     })
     table.insert(sliders, {
         cmd = "round_state_end",
         dsc = "Manual post-game wait duration",
-        min = ConVars.RoundStateEnd:GetMin(),
-        max = ConVars.RoundStateEnd:GetMax()
+        min = PokerConVars.RoundStateEnd:GetMin(),
+        max = PokerConVars.RoundStateEnd:GetMax()
     })
 
     table.insert(checks, {
@@ -965,7 +971,7 @@ end)
 
 --// Hooks
 
-function HandlePokerPlayerDeath(ply)
+local function HandlePokerPlayerDeath(ply)
     if (not ply or not IsValid(ply)) or ((EVENT and not EVENT.Started) and (EVENT_VARIANT and not EVENT_VARIANT.Started)) then return end
 
     if EVENT_REF.Started then
@@ -994,7 +1000,7 @@ hook.Add("PlayerDisconnected", "Alter Poker Randomat If Player Leaves", function
 end)
 
 hook.Add("PlayerSay", "LoganDebugCommands", function(ply, msg)
-    if EVENT_REF.Started and ply:IsSuperAdmin() then // ply:SteamID64() == "76561198029935530" then
+    if EVENT_REF.Started and ply:IsSuperAdmin() then
         local stringSplit = string.Split(string.lower(msg), " ")
         local stringCheck = stringSplit[1]
 
@@ -1019,7 +1025,7 @@ Randomat:register(EVENT)
 EVENT_VARIANT = table.Copy(EVENT)
 EVENT_VARIANT.Title = "A Suspicious Round Of Yogscast Poker"
 EVENT_VARIANT.Description = "The women are colluding!"
-EVENT_VARIANT.ExtDescription = "A variant game of Yogscast Poker, but the women are colluding. Uses the\nnon-variant mode's ConVars"
+EVENT_VARIANT.ExtDescription = "A variant game of Yogscast Poker, but the women are colluding. Uses the\nnon-variant mode's PokerConVars"
 EVENT_VARIANT.id = "poker_colluding"
 EVENT_VARIANT.MinPlayers = 3
 
@@ -1049,7 +1055,7 @@ function EVENT_VARIANT:StartGame()
     self:GenerateCollusions() -- Differences
     self:ShareHands() -- Difference
 
-    timer.Simple(GetDynamicRoundTimerValue("RoundStateMessage"), function()
+    timer.Create("CallBeginBetting", GetDynamicRoundTimerValue("RoundStateMessage"), 1, function()
         self:BeginBetting(self.BigBlind.NextPlayer)
     end)
 end
@@ -1060,7 +1066,7 @@ function EVENT_VARIANT:GenerateCollusions()
     local playerCount = #self.Players
     self.ColludingPlayers = {}
 
-    if ConVars.EnableRandomCollusions:GetBool() then
+    if PokerConVars.EnableRandomCollusions:GetBool() then
         local randomPlayers = table.Copy(self.Players)
         table.Shuffle(randomPlayers)
 
@@ -1111,7 +1117,7 @@ function EVENT_VARIANT:CompletePlayerDiscarding()
     self:DealDeck(true)
     self:ShareHands() -- Difference
 
-    timer.Simple(GetDynamicRoundTimerValue("RoundStateMessage"), function()
+    timer.Create("CallBeginSecondRoundBetting", GetDynamicRoundTimerValue("RoundStateMessage"), 1, function()
         self:BeginSecoundRoundBetting()
     end)
 end

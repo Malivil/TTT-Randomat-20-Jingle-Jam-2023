@@ -73,7 +73,7 @@ function PlayerCard:SetPlayer(ply)
     if ply then
         self.Player = ply:Nick()
 
-        if string.len(self.Player) > 12 then
+        if utf8.len(self.Player) > 12 then
             self.Player = string.Left(self.Player, 12) .. "..."
         end  
     end
@@ -617,13 +617,13 @@ function Controls:Setup()
     self.RaiseOpt.OpenMenu = function(pnl)
         pnl:CloseMenu()
         local parent = pnl
-        while ( IsValid( parent ) && !parent:IsModal() ) do
+        while (IsValid(parent) && !parent:IsModal()) do
             parent = parent:GetParent()
         end
-        if ( !IsValid( parent ) ) then parent = pnl end
+        if (!IsValid(parent)) then parent = pnl end
 
         CloseDermaMenus()
-        pnl.Menu = vgui.Create( "DMenu", parent )
+        pnl.Menu = vgui.Create("DMenu", parent)
         pnl.Menu.Paint = function(menuPnl)
             surface.SetDrawColor(255, 255, 255)
             surface.DrawRect(0, 0, pnl:GetWide(), pnl:GetTall())
@@ -631,10 +631,10 @@ function Controls:Setup()
             surface.SetDrawColor(0, 0, 0)
             surface.DrawOutlinedRect(0, 0, pnl:GetWide(), pnl:GetTall(), 1)
         end
-        pnl.Menu.AddOption = function( menuPnl, strText, funcFunction )
-            local pnl = vgui.Create( "DMenuOption", menuPnl )
-            pnl:SetMenu( menuPnl )
-            pnl:SetText( strText )
+        pnl.Menu.AddOption = function(menuPnl, strText, funcFunction)
+            local pnl = vgui.Create("DMenuOption", menuPnl)
+            pnl:SetMenu(menuPnl)
+            pnl:SetText(strText)
             pnl.OnCursorEntered = function()
                 pnl.IsHover = true
             end
@@ -662,25 +662,25 @@ function Controls:Setup()
 
                 return true
             end
-            if ( funcFunction ) then pnl.DoClick = funcFunction end
+            if funcFunction then pnl.DoClick = funcFunction end
         
-            menuPnl:AddPanel( pnl )
+            menuPnl:AddPanel(pnl)
         
             return pnl
         end
 
-        for k, v in pairs( pnl.Choices ) do
-			local option = pnl.Menu:AddOption( v, function() pnl:ChooseOption( v, k ) end )
-			if ( pnl.Spacers[ k ] ) then
-				pnl.Menu:AddSpacer()
-			end
-		end
+        for k, v in pairs(pnl.Choices) do
+            local option = pnl.Menu:AddOption(v, function() pnl:ChooseOption(v, k) end)
+            if pnl.Spacers[ k ] then
+                pnl.Menu:AddSpacer()
+            end
+        end
 
-        local x, y = pnl:LocalToScreen( 0, pnl:GetTall() )
-        pnl.Menu:SetMinimumWidth( pnl:GetWide() )
-        pnl.Menu:Open( x, y, false, pnl )
+        local x, y = pnl:LocalToScreen(0, pnl:GetTall())
+        pnl.Menu:SetMinimumWidth(pnl:GetWide())
+        pnl.Menu:Open(x, y, false, pnl)
 
-        pnl:OnMenuOpened( pnl.Menu )
+        pnl:OnMenuOpened(pnl.Menu)
     end
     self.RaiseOpt.OnCursorEntered = function(pnl)
         pnl.IsHover = true
@@ -724,7 +724,7 @@ function Controls:ResetRaiseOptions(baselineBet)
     baselineBet = baselineBet or 0
     local betsTable = {}
     
-    if ConVars.EnableSmallerBets:GetBool() then
+    if PokerConVars.EnableSmallerBets:GetBool() then
         betsTable = Bets_Alt
     else
         betsTable = Bets
@@ -896,7 +896,7 @@ function Main:SetTimer(time)
                 return
             end
 
-            if self.TimeRemaining <= 5 and ConVars.EnableRoundStateAudioCues:GetBool() then
+            if self.TimeRemaining <= 5 and PokerConVars.EnableRoundStateAudioCues:GetBool() then
                 surface.PlaySound("weapons/grenade/tick1.wav")
             end
 
