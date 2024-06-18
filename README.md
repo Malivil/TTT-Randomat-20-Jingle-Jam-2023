@@ -4,7 +4,7 @@ A pack of [Randomat 2.0](https://github.com/Malivil/TTT-Randomat-20) events crea
 # Events
 
 ## Admin Abuse
-_Suggested By_: Noxx\
+_Contributed By_: Noxx\
 Turns the detective into an Admin with greatly increased admin power.
 \
 \
@@ -16,7 +16,7 @@ _ttt_randomat_adminabuse_weight_ - Default: -1 - The weight this event should us
 _randomat_adminabuse_rate_ - Default: 0.3 - How often (in seconds) the Admin gains power.
 
 ## Christmas Crackers
-_Suggested By_: The Stig\
+_Contributed By_: The Stig\
 Gives everyone a christmas cracker that can be opened with another player, containing a joke, wearable paper hat, and a random item!\
 Puts a candy cane texture on every weapon, adds a screen effect, and plays christmas-themed music! (Which can be muted per player by pressing 'M')
 \
