@@ -1,7 +1,7 @@
 # _Randomat 2.0_ Events Pack for Jingle Jam 2023
 A pack of [Randomat 2.0](https://github.com/Malivil/TTT-Randomat-20) events created based on the generous donations of our community members in support of [Jingle Jam 2023](https://www.jinglejam.co.uk/).
 
-Also be sure to check out the supplementary Randomat event created by Logan in support of Jingle Jam 2023: [A Round Of Yogscast Poker](https://steamcommunity.com/sharedfiles/filedetails/?id=3270708577)
+Also be sure to check out the supplementary event created by Logan in support of Jingle Jam 2023: [A Round Of Yogscast Poker](https://steamcommunity.com/sharedfiles/filedetails/?id=3270708577)
 
 # Events
 
