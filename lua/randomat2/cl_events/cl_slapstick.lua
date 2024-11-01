@@ -148,7 +148,7 @@ net.Receive("EndSlapstick", function()
 
             -- Enable stencils
             render.SetStencilEnable(true)
-            -- Set everything up everything draws to the stencil buffer instead of the screen
+            -- Set everything so it draws to the stencil buffer instead of the screen
             render.SetStencilReferenceValue(1)
             render.SetStencilCompareFunction(STENCIL_NEVER)
             render.SetStencilFailOperation(STENCIL_REPLACE)
