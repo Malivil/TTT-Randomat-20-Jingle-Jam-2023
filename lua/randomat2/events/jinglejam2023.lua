@@ -3,10 +3,9 @@ local EVENT = {}
 local ipairs = ipairs
 
 util.AddNetworkString("RdmtJingleJam2023Begin")
-util.AddNetworkString("RdmtJingleJam2023End")
 
-local time = CreateConVar("randomat_jinglejam2023_time", 30, {FCVAR_NOTIFY, FCVAR_ARCHIVE}, "How long to jam player screens for", 5, 120)
-local targetall = CreateConVar("randomat_jinglejam2023_targetall", 0, {FCVAR_NOTIFY, FCVAR_ARCHIVE}, "Whether to target all players. If disabled, only non-innocents are targeted", 0, 1)
+local time = CreateConVar("randomat_jinglejam2023_time", 30, FCVAR_ARCHIVE, "How long to jam player screens for", 5, 120)
+local targetall = CreateConVar("randomat_jinglejam2023_targetall", 0, FCVAR_ARCHIVE, "Whether to target all players. If disabled, only non-innocents are targeted", 0, 1)
 
 EVENT.Title = "Jingle Jam 2023"
 EVENT.Description = "\"There's only one man who would DARE give me the raspberry\""
@@ -37,11 +36,6 @@ function EVENT:Begin()
             return false
         end
     end)
-end
-
-function EVENT:End()
-    net.Start("RdmtJingleJam2023End")
-    net.Broadcast()
 end
 
 function EVENT:GetConVars()

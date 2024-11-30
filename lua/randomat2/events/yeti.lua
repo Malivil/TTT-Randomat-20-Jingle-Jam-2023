@@ -1,10 +1,7 @@
 local EVENT = {}
 
-util.AddNetworkString("RandomatYetiBegin")
-util.AddNetworkString("RandomatYetiEnd")
-
-local yeti_scale = CreateConVar("randomat_yeti_scale", 1.5, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "The scale factor to use for the yeti", 1.1, 3.0)
-CreateConVar("randomat_yeti_freeze_time", 5, {FCVAR_ARCHIVE, FCVAR_NOTIFY}, "The amount of time to freeze players hit by the club freezing projectile", 1, 30)
+local yeti_scale = CreateConVar("randomat_yeti_scale", 1.5, FCVAR_ARCHIVE, "The scale factor to use for the yeti", 1.1, 3.0)
+CreateConVar("randomat_yeti_freeze_time", 5, FCVAR_ARCHIVE, "The amount of time to freeze players hit by the club freezing projectile", 1, 30)
 
 EVENT.Title = "Yeti Hunt"
 EVENT.Description = "A Yeti has been spotted!"
@@ -12,14 +9,14 @@ EVENT.id = "yeti"
 EVENT.Type = EVENT_TYPE_WEAPON_OVERRIDE
 EVENT.Categories = {"rolechange", "entityspawn", "largeimpact"}
 
+function EVENT:Initialize()
+    timer.Simple(1, function()
+        YETI:RegisterRole()
+    end)
+end
+
 function EVENT:Begin()
     local yeti_scale_val = yeti_scale:GetFloat()
-
-    net.Start("RandomatYetiBegin")
-    net.Broadcast()
-
-    YETI:RegisterRole()
-
     local traitors = {}
     local special = nil
     local indep = nil
@@ -126,8 +123,6 @@ end
 
 function EVENT:End()
     self:ResetAllPlayerScales()
-    net.Start("RandomatYetiEnd")
-    net.Broadcast()
 end
 
 function EVENT:GetConVars()

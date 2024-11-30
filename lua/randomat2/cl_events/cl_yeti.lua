@@ -1,32 +1,39 @@
-net.Receive("RandomatYetiBegin", function()
-    YETI:RegisterRole()
+local EVENT = {}
+EVENT.id = "yeti"
 
-    hook.Add("TTTScoringWinTitle", "RandomatYetiScoring", function(wintype, wintitle, title)
+function EVENT:Initialize()
+    timer.Simple(1, function()
+        YETI:RegisterRole()
+    end)
+end
+
+function EVENT:Begin()
+    self:AddHook("TTTScoringWinTitle", function(wintype, wintitle, title)
         if wintype == WIN_YETI then
             return { txt = "hilite_win_role_singular", params = { role = ROLE_STRINGS[ROLE_YETI]:upper() }, c = ROLE_COLORS[ROLE_YETI] }
         end
     end)
 
-    hook.Add("TTTEventFinishText", "RandomatYetiEventFinishText", function(e)
+    self:AddHook("TTTEventFinishText", function(e)
         if e.win == WIN_YETI then
             return LANG.GetTranslation("ev_win_yeti")
         end
     end)
 
-    hook.Add("TTTEventFinishIconText", "RandomatYetiEventFinishText", function(e, win_string, role_string)
+    self:AddHook("TTTEventFinishIconText", function(e, win_string, role_string)
         if e.win == WIN_YETI then
             return win_string, ROLE_STRINGS[ROLE_YETI]
         end
     end)
 
     -- Enable the tutorial page for this role when the event is running
-    hook.Add("TTTTutorialRoleEnabled", "RandomatYetiTutorialRoleEnabled", function(role)
+    self:AddHook("TTTTutorialRoleEnabled", function(role)
         if role == ROLE_YETI and Randomat:IsEventActive("yeti") then
             return true
         end
     end)
 
-    hook.Add("TTTTutorialRoleText", "RandomatYetiTutorialRoleText", function(role, titleLabel)
+    self:AddHook("TTTTutorialRoleText", function(role, titleLabel)
         if role ~= ROLE_YETI then return end
 
         local roleColor = ROLE_COLORS[ROLE_YETI]
@@ -39,17 +46,10 @@ net.Receive("RandomatYetiBegin", function()
         return html
     end)
 
-    hook.Add("TTTSprintStaminaPost", "RandomatYetiSprintPost", function()
+    self:AddHook("TTTSprintStaminaPost", function()
         -- Infinite sprint through fixed infinite stamina
         return 100
     end)
-end)
+end
 
-net.Receive("RandomatYetiEnd", function()
-    hook.Remove("TTTScoringWinTitle", "RandomatYetiScoring")
-    hook.Remove("TTTEventFinishText", "RandomatYetiEventFinishText")
-    hook.Remove("TTTEventFinishIconText", "RandomatYetiEventFinishText")
-    hook.Remove("TTTTutorialRoleEnabled", "RandomatYetiTutorialRoleEnabled")
-    hook.Remove("TTTTutorialRoleText", "RandomatYetiTutorialRoleText")
-    hook.Remove("TTTSprintStaminaPost", "RandomatYetiSprintPost")
-end)
+Randomat:register(EVENT)

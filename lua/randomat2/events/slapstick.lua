@@ -4,7 +4,7 @@ local PlayerIterator = player.Iterator
 
 local EVENT = {}
 
-local endsound = CreateConVar("randomat_slapstick_endsound", 1, {FCVAR_NOTIFY, FCVAR_ARCHIVE}, "Whether to play the sound at the end of the event")
+local endsound = CreateConVar("randomat_slapstick_endsound", 1, FCVAR_ARCHIVE, "Whether to play the sound at the end of the event")
 
 EVENT.Title = "Slapstick"
 EVENT.Description = "Swaps out game sounds with funny replacements"
@@ -12,8 +12,8 @@ EVENT.id = "slapstick"
 EVENT.Type = EVENT_TYPE_GUNSOUNDS
 EVENT.Categories = {"fun", "smallimpact"}
 
-util.AddNetworkString("TriggerSlapstick")
-util.AddNetworkString("EndSlapstick")
+util.AddNetworkString("RdmtSlapstickUpdateWeaponSounds")
+util.AddNetworkString("RdmtSlapstickEnd")
 
 local StringFormat = string.format
 
@@ -126,9 +126,6 @@ function EVENT:Begin()
         self:DisableRoundEndSounds()
     end
 
-    net.Start("TriggerSlapstick")
-    net.Broadcast()
-
     for _, ply in PlayerIterator() do
         for _, wep in ipairs(ply:GetWeapons()) do
             local chosen_sound = StringFormat(gunshot_sound_path, math.random(gunshot_sound_count))
@@ -138,7 +135,7 @@ function EVENT:Begin()
 
     self:AddHook("WeaponEquip", function(wep, ply)
         timer.Create("SlapstickDelay", 0.1, 1, function()
-            net.Start("TriggerSlapstick")
+            net.Start("RdmtSlapstickUpdateWeaponSounds")
             net.Send(ply)
             local chosen_sound = StringFormat(gunshot_sound_path, math.random(gunshot_sound_count))
             Randomat:OverrideWeaponSound(wep, chosen_sound)
@@ -193,7 +190,7 @@ function EVENT:End()
 
     local postround = GetConVar("ttt_posttime_seconds"):GetInt()
 
-    net.Start("EndSlapstick")
+    net.Start("RdmtSlapstickEnd")
     net.WriteBool(endsound:GetBool())
     net.WriteUInt(math.random(outro_sound_count), 2)
     net.WriteUInt(postround, 8)

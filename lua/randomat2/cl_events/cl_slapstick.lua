@@ -1,6 +1,7 @@
 local StringFormat = string.format
 
-local hooked = false
+local EVENT = {}
+EVENT.id = "slapstick"
 
 -- Sound file paths
 local beeping_sound_path = "slapstick/beeping/beeping%s.wav"
@@ -65,40 +66,8 @@ local sound_mapping = {
     [".*weapons/.*lidclose.*%..*"] = reload_sounds,
     [".*weapons/.*magslap.*%..*"] = reload_sounds
 }
-net.Receive("TriggerSlapstick", function()
-    -- This event can be called multiple times but we only want to add the hook once
-    if not hooked then
-        hook.Add("EntityEmitSound", "SlapstickOverrideHook", function(data)
-            local current_sound = data.SoundName:lower()
-            local new_sound = nil
-            for pattern, sounds in pairs(sound_mapping) do
-                if string.find(current_sound, pattern) then
-                    -- If this is a player "footstep"-ing in mid-air, they are jumping or using a ladder
-                    if footsteps_pattern == pattern and IsPlayer(data.Entity) and not data.Entity:IsOnGround() then
-                        -- Don't replace the sound if the player is on a ladder
-                        if data.Entity:GetMoveType() ~= MOVETYPE_LADDER then
-                            new_sound = StringFormat(jump_sound_path, math.random(jump_sound_count))
-                        end
-                    else
-                        local sound_path = sounds[1]
-                        local sound_index = math.random(sounds[2])
-                        new_sound = StringFormat(sound_path, sound_index)
-                    end
-                    break
-                end
-            end
 
-            if new_sound then
-                data.SoundName = new_sound
-                return true
-            else
-                local chosen_sound = StringFormat(gunshot_sound_path, math.random(gunshot_sound_count))
-                return Randomat:OverrideWeaponSoundData(data, chosen_sound)
-            end
-        end)
-        hooked = true
-    end
-
+local function UpdateWeaponSounds()
     local client = LocalPlayer()
     if not IsValid(client) then return end
 
@@ -106,21 +75,54 @@ net.Receive("TriggerSlapstick", function()
         local chosen_sound = StringFormat(gunshot_sound_path, math.random(gunshot_sound_count))
         Randomat:OverrideWeaponSound(wep, chosen_sound)
     end
-end)
+end
+
+function EVENT:Begin()
+    self:AddHook("EntityEmitSound", function(data)
+        local current_sound = data.SoundName:lower()
+        local new_sound = nil
+        for pattern, sounds in pairs(sound_mapping) do
+            if string.find(current_sound, pattern) then
+                -- If this is a player "footstep"-ing in mid-air, they are jumping or using a ladder
+                if footsteps_pattern == pattern and IsPlayer(data.Entity) and not data.Entity:IsOnGround() then
+                    -- Don't replace the sound if the player is on a ladder
+                    if data.Entity:GetMoveType() ~= MOVETYPE_LADDER then
+                        new_sound = StringFormat(jump_sound_path, math.random(jump_sound_count))
+                    end
+                else
+                    local sound_path = sounds[1]
+                    local sound_index = math.random(sounds[2])
+                    new_sound = StringFormat(sound_path, sound_index)
+                end
+                break
+            end
+        end
+
+        if new_sound then
+            data.SoundName = new_sound
+            return true
+        else
+            local chosen_sound = StringFormat(gunshot_sound_path, math.random(gunshot_sound_count))
+            return Randomat:OverrideWeaponSoundData(data, chosen_sound)
+        end
+    end)
+    hooked = true
+
+    UpdateWeaponSounds()
+end
+
+Randomat:register(EVENT)
 
 local function DrawCircle(x, y, radius, seg)
     local cir = {}
     for i = 0, seg do
-		local a = math.rad((i / seg) * -360)
-		table.insert(cir, { x = x + math.sin(a) * radius, y = y + math.cos(a) * radius, u = math.sin(a) / 2 + 0.5, v = math.cos(a) / 2 + 0.5 })
-	end
+        local a = math.rad((i / seg) * -360)
+        table.insert(cir, { x = x + math.sin(a) * radius, y = y + math.cos(a) * radius, u = math.sin(a) / 2 + 0.5, v = math.cos(a) / 2 + 0.5 })
+    end
     surface.DrawPoly(cir)
 end
 
-net.Receive("EndSlapstick", function()
-    hook.Remove("EntityEmitSound", "SlapstickOverrideHook")
-    hooked = false
-
+net.Receive("RdmtSlapstickEnd", function()
     local playoutro = net.ReadBool()
     local outro = net.ReadUInt(2)
     local postround = net.ReadUInt(8)
@@ -182,3 +184,5 @@ net.Receive("EndSlapstick", function()
         Randomat:RestoreWeaponSound(wep)
     end
 end)
+
+net.Receive("RdmtSlapstickUpdateWeaponSounds", UpdateWeaponSounds)

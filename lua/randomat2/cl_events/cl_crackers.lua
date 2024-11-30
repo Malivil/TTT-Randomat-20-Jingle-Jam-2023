@@ -1,4 +1,37 @@
+local EVENT = {}
+EVENT.id = "crackers"
+
 local music
+function EVENT:End()
+    -- Plays the ending music
+    if music then
+        timer.Remove("CrackersRandomatMusicLoop")
+        RunConsoleCommand("stopsound")
+
+        timer.Simple(0.1, function()
+            surface.PlaySound("crackers/christmas_rap_end.mp3")
+        end)
+
+        music = false
+    end
+
+    -- Remove effects in time with the ending music
+    timer.Simple(5.34, function()
+        hook.Remove("PlayerButtonDown", "CrackersMuteMusicButton")
+        hook.Remove("HUDPaintBackground", "CrackersRandomatScreenEffect")
+
+        -- Removes the candy cane texture for held weapons
+        local client = LocalPlayer()
+        if IsValid(client) then
+            local vm = client:GetViewModel()
+            if IsValid(vm) then
+                vm:SetMaterial("")
+            end
+        end
+    end)
+end
+
+Randomat:register(EVENT)
 
 net.Receive("RandomatCrackersBegin", function()
     -- Applies the candy cane texture for weapons in your hands
@@ -21,7 +54,7 @@ net.Receive("RandomatCrackersBegin", function()
         surface.DrawTexturedRect(0, 0, ScrW(), ScrH())
     end)
 
-    -- Plays christmassy music on a loop
+    -- Plays christmas-y music on a loop
     music = net.ReadBool()
 
     if music then
@@ -46,34 +79,4 @@ net.Receive("RandomatCrackersBegin", function()
             end
         end)
     end
-end)
-
-net.Receive("RandomatCrackersEnd", function()
-    -- Plays the ending music
-    if music then
-        timer.Remove("CrackersRandomatMusicLoop")
-        RunConsoleCommand("stopsound")
-
-        timer.Simple(0.1, function()
-            surface.PlaySound("crackers/christmas_rap_end.mp3")
-        end)
-
-        music = false
-    end
-
-    -- Remove effects in time with the ending music
-    timer.Simple(5.34, function()
-        hook.Remove("PlayerButtonDown", "CrackersMuteMusicButton")
-        hook.Remove("HUDPaintBackground", "CrackersRandomatScreenEffect")
-        -- Removes the candy cane texture for held weapons
-        local client = LocalPlayer()
-
-        if IsValid(client) then
-            local vm = client:GetViewModel()
-
-            if IsValid(vm) then
-                vm:SetMaterial("")
-            end
-        end
-    end)
 end)

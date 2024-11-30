@@ -1127,8 +1127,8 @@ globals = {
     "EQUIP_PHD",
     "ULib",
 
-	-- JJ2023 Randomat
-	"ROLE_YETI",
+    -- JJ2023 Randomat
+    "ROLE_YETI",
     "WIN_YETI",
     "YETI",
 

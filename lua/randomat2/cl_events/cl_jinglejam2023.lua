@@ -1,6 +1,8 @@
 util.PrecacheSound("radar_jammed.mp3")
 
-local client
+local EVENT = {}
+EVENT.id = "jinglejam2023"
+
 local oldRadarEndTime = nil
 local function RestartRadar()
     if not oldRadarEndTime then return end
@@ -8,6 +10,20 @@ local function RestartRadar()
     RADAR.enable = true
     RADAR.endtime = CurTime() + RADAR.duration
 end
+
+local client
+function EVENT:End()
+    hook.Remove("HUDPaint", "RdmtJingleJam2023HUDPaint")
+    timer.Remove("RdmtJingleJam2023RadarDisable")
+
+    if not IsPlayer(client) then return end
+
+    if client:HasEquipmentItem(EQUIP_RADAR) then
+        RestartRadar()
+    end
+end
+
+Randomat:register(EVENT)
 
 net.Receive("RdmtJingleJam2023Begin", function()
     surface.PlaySound("radar_jammed.mp3")
@@ -94,15 +110,4 @@ net.Receive("RdmtJingleJam2023Begin", function()
             RADAR:Clear()
         end
     end)
-end)
-
-net.Receive("RdmtJingleJam2023End", function()
-    hook.Remove("HUDPaint", "RdmtJingleJam2023HUDPaint")
-    timer.Remove("RdmtJingleJam2023RadarDisable")
-
-    if not IsPlayer(client) then return end
-
-    if client:HasEquipmentItem(EQUIP_RADAR) then
-        RestartRadar()
-    end
 end)
