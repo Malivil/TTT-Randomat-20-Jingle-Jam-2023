@@ -106,7 +106,6 @@ function EVENT:Begin()
             return Randomat:OverrideWeaponSoundData(data, chosen_sound)
         end
     end)
-    hooked = true
 
     UpdateWeaponSounds()
 end
