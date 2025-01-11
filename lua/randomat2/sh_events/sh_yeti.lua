@@ -15,15 +15,8 @@ function YETI:RegisterRole()
         nameext = "a Yeti",
         nameshort = "yeti",
         team = ROLE_TEAM_INDEPENDENT,
-        translations = {
-            ["english"] = {
-            }
-        }
+        blockspawnconvars = true
     }
-
-    CreateConVar("ttt_yeti_enabled", "0", FCVAR_REPLICATED)
-    CreateConVar("ttt_yeti_spawn_weight", "1")
-    CreateConVar("ttt_yeti_min_players", "0")
     CreateConVar("ttt_yeti_starting_health", "200")
     CreateConVar("ttt_yeti_max_health", "200")
     CreateConVar("ttt_yeti_name", role.name, FCVAR_REPLICATED)
