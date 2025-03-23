@@ -1,8 +1,8 @@
 local EVENT = {}
 
-CreateConVar("randomat_crackers_item_blocklist", "", FCVAR_ARCHIVE, "Comma-separated list of weapon classnames to not give when a player wins a cracker (E.g. \"weapon_ttt_knife,weapon_ttt_harpoon\")")
+CreateConVar("randomat_crackers_item_blocklist", "", FCVAR_NONE, "Comma-separated list of weapon classnames to not give when a player wins a cracker (E.g. \"weapon_ttt_knife,weapon_ttt_harpoon\")")
 
-local musicConvar = CreateConVar("randomat_crackers_music", "1", FCVAR_ARCHIVE, "Play music during this randomat", 0, 1)
+local musicConvar = CreateConVar("randomat_crackers_music", "1", FCVAR_NONE, "Play music during this randomat", 0, 1)
 
 EVENT.Title = "Christmas Crackers"
 EVENT.Description = "Open your crackers and spread some Christmas cheer!"

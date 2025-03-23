@@ -1,6 +1,6 @@
 local EVENT = {}
 
-local adminabuse_rate = CreateConVar("randomat_adminabuse_rate", 0.3, FCVAR_ARCHIVE, "How often (in seconds) the Admin gains power", 0.01, 10)
+local adminabuse_rate = CreateConVar("randomat_adminabuse_rate", 0.3, FCVAR_NONE, "How often (in seconds) the Admin gains power", 0.01, 10)
 
 EVENT.Title = "Admin Abuse"
 EVENT.Description = "Turns the detective into an Admin with greatly increased admin power"

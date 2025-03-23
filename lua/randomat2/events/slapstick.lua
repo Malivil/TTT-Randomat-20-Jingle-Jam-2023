@@ -4,7 +4,7 @@ local PlayerIterator = player.Iterator
 
 local EVENT = {}
 
-local endsound = CreateConVar("randomat_slapstick_endsound", 1, FCVAR_ARCHIVE, "Whether to play the sound at the end of the event")
+local endsound = CreateConVar("randomat_slapstick_endsound", 1, FCVAR_NONE, "Whether to play the sound at the end of the event")
 
 EVENT.Title = "Slapstick"
 EVENT.Description = "Swaps out game sounds with funny replacements"

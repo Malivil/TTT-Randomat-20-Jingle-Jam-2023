@@ -6,8 +6,8 @@ local MathMax = math.max
 local MathMin = math.min
 local MathRound = math.Round
 
-local deteggtive_health = CreateConVar("randomat_deteggtive_health", 200, FCVAR_ARCHIVE, "How much health the deteggtive should have", 100, 300)
-local deteggtive_speed_mult = CreateConVar("randomat_deteggtive_speed_mult", 0.8, FCVAR_ARCHIVE, "The deteggtive's speed multiplier (e.g. 0.8 = 80% of normal speed)", 0.1, 2.0)
+local deteggtive_health = CreateConVar("randomat_deteggtive_health", 200, FCVAR_NONE, "How much health the deteggtive should have", 100, 300)
+local deteggtive_speed_mult = CreateConVar("randomat_deteggtive_speed_mult", 0.8, FCVAR_NONE, "The deteggtive's speed multiplier (e.g. 0.8 = 80% of normal speed)", 0.1, 2.0)
 
 EVENT.Title = "Hard Boiled Det-EGG-tive"
 EVENT.Description = "Turns the detective into an egg who moves slower, and has more health and a revolver with infinite ammo"
