@@ -7,12 +7,13 @@ local musicConvar = CreateConVar("randomat_crackers_music", "1", FCVAR_NONE, "Pl
 EVENT.Title = "Christmas Crackers"
 EVENT.Description = "Open your crackers and spread some Christmas cheer!"
 EVENT.id = "crackers"
-
 EVENT.Categories = {"item", "largeimpact"}
-
 EVENT.Type = EVENT_TYPE_MUSIC
+EVENT.ConVars = {"randomat_crackers_item_blocklist"}
+
 util.AddNetworkString("RandomatCrackersBegin")
 util.AddNetworkString("RandomatCrackersEnd")
+
 local crackerClass = "weapon_ttt_cracker"
 
 -- Changes the texture of weapons or thrown grenades
