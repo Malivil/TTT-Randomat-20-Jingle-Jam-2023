@@ -38,7 +38,10 @@ function EVENT:Begin()
     end
 
     -- Default the yeti to the independent player, but if there isn't one then use the chosen traitor instead
-    local yeti = indep or special
+    local yeti = indep
+    if not IsValid(yeti) then
+        yeti = special
+    end
 
     local yeti_health = GetConVar("ttt_yeti_max_health"):GetInt()
     local max_hp = yeti:GetMaxHealth()
@@ -46,6 +49,8 @@ function EVENT:Begin()
     yeti:SetMaxHealth(yeti_health)
     yeti:SetHealth(yeti_health - (max_hp - yeti:Health()))
 
+    -- Reset FOV to unscope
+    yeti:SetFOV(0, 0.2)
     yeti:StripWeapons()
     yeti:Give("weapon_yeti_club")
 
