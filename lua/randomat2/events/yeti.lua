@@ -68,18 +68,22 @@ function EVENT:Begin()
     end)
 
     self:AddHook("TTTCheckForWin", function()
-        local yeti_win = true
+        local yeti_alive = false
+        local other_alive = false
         for _, p in ipairs(self:GetAlivePlayers()) do
-            -- If there is a living non-yeti then go back to the default check logic
-            -- Exceptions for non-clown Jesters
-            if not p:IsRole(ROLE_YETI) and (p:GetRole() == ROLE_CLOWN or not Randomat:IsJesterTeam(p)) then
-                yeti_win = false
-                break
+            if p:IsActive() then
+                if p:IsYeti() then
+                    yeti_alive = true
+                elseif not p:ShouldActLikeJester() and not ROLE_HAS_PASSIVE_WIN[p:GetRole()] then
+                    other_alive = true
+                end
             end
         end
 
-        if yeti_win then
+        if yeti_alive and not other_alive then
             return WIN_YETI
+        elseif yeti_alive then
+            return WIN_NONE
         end
     end)
 
