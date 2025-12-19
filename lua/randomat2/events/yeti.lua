@@ -17,27 +17,27 @@ end
 
 function EVENT:Begin()
     local yeti_scale_val = yeti_scale:GetFloat()
-    local traitors = {}
+    local innocents = {}
     local special = nil
     local indep = nil
-    -- Collect the traitors to potentially turn into a yeti
+    -- Collect the innocents to potentially turn into a yeti
     for _, p in ipairs(self:GetAlivePlayers(true)) do
-        if Randomat:IsTraitorTeam(p) then
-            if p:GetRole() ~= ROLE_TRAITOR and special == nil then
+        if Randomat:IsInnocentTeam(p) and not Randomat:IsDetectiveTeam(p) then
+            if p:GetRole() ~= ROLE_INNOCENT and special == nil then
                 special = p
             end
-            table.insert(traitors, p)
+            table.insert(innocents, p)
         elseif Randomat:IsIndependentTeam(p) then
             indep = p
         end
     end
 
-    -- If we don't have a special traitor, choose a random player
+    -- If we don't have a special innocent, choose a random player
     if special == nil then
-        special = traitors[math.random(1, #traitors)]
+        special = innocents[math.random(1, #innocents)]
     end
 
-    -- Default the yeti to the independent player, but if there isn't one then use the chosen traitor instead
+    -- Default the yeti to the independent player, but if there isn't one then use the chosen innocent instead
     local yeti = indep
     if not IsValid(yeti) then
         yeti = special
