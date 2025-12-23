@@ -45,7 +45,7 @@ _randomat_deteggtive_health_ - Default: 200 - How much health the deteggtive sho
 _randomat_deteggtive_speed_mult_ - Default: 0.8 - The deteggtive's speed multiplier (e.g. 0.8 = 80% of normal speed)
 
 ## Jingle Jam 2023
-_Suggested By_: Malivil\
+_Contributed By_: Malivil\
 "There's only one man who would DARE give me the raspberry"\
 Targets non-innocents and causes "jam" to drip down their screen, obscuring their vision like in the 1987 classic Mel Brooks sci-fi comedy, Spaceballs.
 \
