@@ -72,7 +72,7 @@ function EVENT:Begin()
         local other_alive = false
         for _, p in ipairs(self:GetAlivePlayers()) do
             if p:IsActive() then
-                if p:IsYeti() then
+                if p:GetRole() == ROLE_YETI then
                     yeti_alive = true
                 elseif not p:ShouldActLikeJester() and not ROLE_HAS_PASSIVE_WIN[p:GetRole()] then
                     other_alive = true
