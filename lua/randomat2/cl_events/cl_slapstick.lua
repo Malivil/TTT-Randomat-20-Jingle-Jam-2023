@@ -68,10 +68,7 @@ local sound_mapping = {
 }
 
 local function UpdateWeaponSounds()
-    local client = LocalPlayer()
-    if not IsValid(client) then return end
-
-    for _, wep in ipairs(client:GetWeapons()) do
+    for _, wep in ipairs(Randomat.Client:GetWeapons()) do
         local chosen_sound = StringFormat(gunshot_sound_path, math.random(gunshot_sound_count))
         Randomat:OverrideWeaponSound(wep, chosen_sound)
     end
@@ -176,10 +173,7 @@ net.Receive("RdmtSlapstickEnd", function()
         hook.Remove("HUDPaint", "SlapstickHUDPaint")
     end)
 
-    local client = LocalPlayer()
-    if not IsValid(client) then return end
-
-    for _, wep in ipairs(client:GetWeapons()) do
+    for _, wep in ipairs(Randomat.Client:GetWeapons()) do
         Randomat:RestoreWeaponSound(wep)
     end
 end)

@@ -11,14 +11,16 @@ local function RestartRadar()
     RADAR.endtime = CurTime() + RADAR.duration
 end
 
-local client
 function EVENT:End()
     hook.Remove("HUDPaint", "RdmtJingleJam2023HUDPaint")
     timer.Remove("RdmtJingleJam2023RadarDisable")
 
-    if not IsPlayer(client) then return end
+    -- If we don't have a client it's because we're not loaded yet
+    -- This can happen because the Randomat "ends" all events during the Prep phase so if
+    -- a player is still loading at that point then `LocalPlayer` would return a NULL Entity
+    if not Randomat.Client or not IsPlayer(Randomat.Client) or not Randomat.Client.HasEquipmentItem then return end
 
-    if client:HasEquipmentItem(EQUIP_RADAR) then
+    if Randomat.Client:HasEquipmentItem(EQUIP_RADAR) then
         RestartRadar()
     end
 end
@@ -31,12 +33,10 @@ net.Receive("RdmtJingleJam2023Begin", function()
     local time = net.ReadUInt(8)
     local targetall = net.ReadBool()
 
-    client = LocalPlayer()
-
     local function IsTarget()
-        if not client:Alive() or client:IsSpec() then return false end
+        if not Randomat.Client:Alive() or Randomat.Client:IsSpec() then return false end
         if targetall then return true end
-        if Randomat:IsInnocentTeam(client) then return false end
+        if Randomat:IsInnocentTeam(Randomat.Client) then return false end
         return true
     end
     if not IsTarget() then return end
@@ -74,7 +74,7 @@ net.Receive("RdmtJingleJam2023Begin", function()
 
     hook.Add("HUDPaint", "RdmtJingleJam2023HUDPaint", function()
         if CurTime() >= endTime then return end
-        if not IsValid(client) or not client:Alive() or client:IsSpec() then return end
+        if not Randomat.Client:Alive() or Randomat.Client:IsSpec() then return end
 
         surface.SetDrawColor(95, 9, 9, 225)
 
@@ -99,8 +99,8 @@ net.Receive("RdmtJingleJam2023Begin", function()
 
     -- Block radar from working while jammed
     timer.Create("RdmtJingleJam2023RadarDisable", 0.25, 0, function()
-        if not IsValid(client) or not client:Alive() or client:IsSpec() then return end
-        if not client:HasEquipmentItem(EQUIP_RADAR) then return end
+        if not Randomat.Client:Alive() or Randomat.Client:IsSpec() then return end
+        if not Randomat.Client:HasEquipmentItem(EQUIP_RADAR) then return end
 
         if CurTime() >= endTime then
             RestartRadar()

@@ -21,12 +21,9 @@ function EVENT:End()
         hook.Remove("HUDPaintBackground", "CrackersRandomatScreenEffect")
 
         -- Removes the candy cane texture for held weapons
-        local client = LocalPlayer()
-        if IsValid(client) then
-            local vm = client:GetViewModel()
-            if IsValid(vm) then
-                vm:SetMaterial("")
-            end
+        local vm = Randomat.Client:GetViewModel()
+        if IsValid(vm) then
+            vm:SetMaterial("")
         end
     end)
 end
@@ -35,14 +32,9 @@ Randomat:register(EVENT)
 
 net.Receive("RandomatCrackersBegin", function()
     -- Applies the candy cane texture for weapons in your hands
-    local client = LocalPlayer()
-
-    if IsValid(client) then
-        local vm = client:GetViewModel()
-
-        if IsValid(vm) then
-            vm:SetMaterial("ttt_randomat_jingle_jam_2023/candy_cane")
-        end
+    local vm = Randomat.Client:GetViewModel()
+    if IsValid(vm) then
+        vm:SetMaterial("ttt_randomat_jingle_jam_2023/candy_cane")
     end
 
     -- Adds a "cold" screen effect
