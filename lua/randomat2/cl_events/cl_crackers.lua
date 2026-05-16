@@ -20,6 +20,11 @@ function EVENT:End()
         hook.Remove("PlayerButtonDown", "CrackersMuteMusicButton")
         hook.Remove("HUDPaintBackground", "CrackersRandomatScreenEffect")
 
+        -- If we don't have a client it's because we're not loaded yet
+        -- This can happen because the Randomat "ends" all events during the Prep phase so if
+        -- a player is still loading at that point then `LocalPlayer` would return a NULL Entity
+        if not Randomat.Client or not IsPlayer(Randomat.Client) or not Randomat.Client.GetViewModel then return end
+
         -- Removes the candy cane texture for held weapons
         local vm = Randomat.Client:GetViewModel()
         if IsValid(vm) then
