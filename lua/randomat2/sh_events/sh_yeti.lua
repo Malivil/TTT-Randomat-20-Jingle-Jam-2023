@@ -2,6 +2,10 @@ YETI = {
     registered = false
 }
 
+CreateConVar("randomat_yeti_blizzard", 1, FCVAR_REPLICATED, "Whether a blizzard starts when the Yeti appears", 0, 1)
+CreateConVar("randomat_yeti_blizzard_start", 50, FCVAR_REPLICATED, "How far away from a player (in units) the blizzard should start", 1, 300)
+CreateConVar("randomat_yeti_blizzard_affects_yeti", 1, FCVAR_REPLICATED , "Whether the blizzard also affects the Yeti's vision", 0, 1)
+
 function YETI:RegisterRole()
     if self.registered then return end
 

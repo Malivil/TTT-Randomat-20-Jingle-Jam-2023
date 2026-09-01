@@ -1,7 +1,23 @@
+local ipairs = ipairs
+local math = math
+local net = net
+local player = player
+local table = table
+local timer = timer
+
+local PlayerIterator = player.Iterator
+
+util.AddNetworkString("RdmtYetiDeath")
+
 local EVENT = {}
 
 local yeti_scale = CreateConVar("randomat_yeti_scale", 1.5, FCVAR_NONE, "The scale factor to use for the yeti", 1.1, 3.0)
 CreateConVar("randomat_yeti_freeze_time", 5, FCVAR_NONE, "The amount of time to freeze players hit by the club freezing projectile", 1, 30)
+local blizzard_end_on_death = CreateConVar("randomat_yeti_blizzard_end_on_death", 1, FCVAR_NONE, "Whether the blizzard ends when the Yeti dies", 0, 1)
+local blizzard_damage_interval = CreateConVar("randomat_yeti_blizzard_damage_interval", 5, FCVAR_NONE, "How often (in seconds) all non-Yetis should take blizzard damage", 1, 180)
+local blizzard_damage_amount = CreateConVar("randomat_yeti_blizzard_damage_amount", 1, FCVAR_NONE, "How much damage each non-Yeti should take during the blizzard", 0, 25)
+local blizzard_damage_jesters = CreateConVar("randomat_yeti_blizzard_damage_jesters", 0, FCVAR_NONE, "Whether the blizzard also damages jester team members", 0, 1)
+local blizzard_damage_passives = CreateConVar("randomat_yeti_blizzard_damage_passives", 0, FCVAR_NONE, "Whether the blizzard also damages roles with passive wins (e.g. Old Man)", 0, 1)
 
 EVENT.Title = "Yeti Hunt"
 EVENT.Description = "A Yeti has been spotted!"
@@ -128,15 +144,50 @@ function EVENT:Begin()
             net.WriteFloat(yeti_scale_val)
         net.Broadcast()
     end)
+
+    if GetConVar("randomat_yeti_blizzard"):GetBool() then
+        local interval = blizzard_damage_interval:GetInt()
+        local amount = blizzard_damage_amount:GetInt()
+        local damage_jesters = blizzard_damage_jesters:GetBool()
+        local damage_passives = blizzard_damage_passives:GetBool()
+        timer.Create("RdmtYetiBlizzardDamage", interval, 0, function()
+            for _, p in PlayerIterator() do
+                if not IsPlayer(p) then continue end
+                if not p:Alive() or p:IsSpec() then continue end
+                if p:IsRole(ROLE_YETI) then continue end
+                if not damage_jesters and p:ShouldActLikeJester() then continue end
+                if not damage_passives and ROLE_HAS_PASSIVE_WIN[p:GetRole()] then continue end
+
+                local dmginfo = DamageInfo()
+                dmginfo:SetDamageType(DMG_SLASH)
+                dmginfo:SetDamage(amount)
+                dmginfo:SetAttacker(yeti)
+                dmginfo:SetInflictor(game.GetWorld())
+                dmginfo:SetDamageForce(Vector(0, 0, 1))
+                p:TakeDamageInfo(dmginfo)
+            end
+        end)
+
+        if blizzard_end_on_death:GetBool() then
+            self:AddHook("PlayerDeath", function(ply, infl, att)
+                if ply ~= yeti then return end
+                self:RemoveHook("PlayerDeath")
+                timer.Remove("RdmtYetiBlizzardDamage")
+                net.Start("RdmtYetiDeath")
+                net.Broadcast()
+            end)
+        end
+    end
 end
 
 function EVENT:End()
     self:ResetAllPlayerScales()
+    timer.Remove("RdmtYetiBlizzardDamage")
 end
 
 function EVENT:GetConVars()
     local sliders = {}
-    for _, v in ipairs({"freeze_time"}) do
+    for _, v in ipairs({"freeze_time", "blizzard_damage_interval", "blizzard_damage_amount", "blizzard_start"}) do
         local name = "randomat_" .. self.id .. "_" .. v
         if ConVarExists(name) then
             local convar = GetConVar(name)
@@ -163,7 +214,38 @@ function EVENT:GetConVars()
             })
         end
     end
-    return sliders
+
+    local checks = {}
+    for _, v in ipairs({"blizzard", "blizzard_affects_yeti", "blizzard_damage_jesters", "blizzard_damage_passives", "blizzard_end_on_death"}) do
+        local name = "randomat_" .. self.id .. "_" .. v
+        if ConVarExists(name) then
+            local convar = GetConVar(name)
+            table.insert(checks, {
+                cmd = v,
+                dsc = convar:GetHelpText()
+            })
+        end
+    end
+
+    local layout = {
+        ["scale"] = 1,
+        ["freeze_time"] = 2,
+        ["Blizzard"] = {
+            pos = 3,
+            items = {
+                "blizzard",
+                "blizzard_end_on_death",
+                "blizzard_start",
+                "blizzard_affects_yeti",
+                "blizzard_damage_interval",
+                "blizzard_damage_amount",
+                "blizzard_damage_jesters",
+                "blizzard_damage_passives"
+            }
+        }
+    }
+
+    return sliders, checks, {}, layout
 end
 
 Randomat:register(EVENT)

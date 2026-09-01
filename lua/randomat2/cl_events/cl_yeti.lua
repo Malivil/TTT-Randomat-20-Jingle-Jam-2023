@@ -50,6 +50,54 @@ function EVENT:Begin()
         -- Infinite sprint through fixed infinite stamina
         return 100
     end)
+
+    if GetConVar("randomat_yeti_blizzard"):GetBool() then
+        -- If the local player is a Yeti and they arne't affected by the blizzard then don't bother with this stuff
+        if IsPlayer(Randomat.Client) and Randomat.Client:IsRole(ROLE_YETI) and not GetConVar("randomat_yeti_blizzard_affects_yeti"):GetBool() then return end
+
+        local start = GetConVar("randomat_yeti_blizzard_start"):GetInt()
+        local function IsHidden(cli, ply)
+            -- Magic number to scale this distance to the fog distance even though they supposedly use the same unit
+            local scale = 12.4
+            local dist = cli:GetPos():Distance(ply:GetPos())
+            return dist / scale > start
+        end
+
+        -- Hide all of the info shown in the target ID on mouse over
+        self:AddHook("TTTTargetIDPlayerBlockInfo", function(ply, cli)
+            if IsHidden(cli, ply, start) then
+                return true
+            end
+        end)
+
+        --Limits the player's view distance like in among us
+        self:AddHook("SetupWorldFog", function()
+            render.FogMode(MATERIAL_FOG_LINEAR)
+            render.FogColor(255, 255, 255)
+            render.FogMaxDensity(1)
+            render.FogStart(start)
+            render.FogEnd(600)
+
+            return true
+        end)
+
+        --If a map has a 3D skybox, apply a fog effect to that too
+        self:AddHook("SetupSkyboxFog", function(scale)
+            render.FogMode(MATERIAL_FOG_LINEAR)
+            render.FogColor(255, 255, 255)
+            render.FogMaxDensity(1)
+            render.FogStart(start * scale)
+            render.FogEnd(600 * scale)
+
+            return true
+        end)
+
+        net.Receive("RdmtYetiDeath", function()
+            self:RemoveHook("TTTTargetIDPlayerBlockInfo")
+            self:RemoveHook("SetupWorldFog")
+            self:RemoveHook("SetupSkyboxFog")
+        end)
+    end
 end
 
 Randomat:register(EVENT)
