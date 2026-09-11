@@ -19,9 +19,7 @@ function EVENT:Begin()
     -- Sanity check
     if not IsPlayer(detective) then return end
 
-    self:StripRoleWeapons(detective)
     Randomat:SetRole(detective, ROLE_ADMIN)
-    detective:Give("weapon_ttt_adm_menu")
     SendFullStateUpdate()
 
     local rate = adminabuse_rate:GetFloat()
